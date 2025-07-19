@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017/carfinder
+      - REDIS_URL=redis://redis:6379
+      - DEBUG=true
+      # Add your SMTP and API keys in .env file
+      - SMTP_HOST=${SMTP_HOST:-localhost}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_DATABASE: carfinder
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: celery -A src.services.tasks worker --loglevel=info
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017/carfinder
+      - REDIS_URL=redis://redis:6379
+      - SMTP_HOST=${SMTP_HOST:-localhost}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+    depends_on:
+      - redis
+      - mongodb
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  scheduler:
+    build: .
+    command: python -m src.services.scheduler
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017/carfinder
+      - REDIS_URL=redis://redis:6379
+      - SMTP_HOST=${SMTP_HOST:-localhost}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+    depends_on:
+      - redis
+      - mongodb
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  redis_data: 
