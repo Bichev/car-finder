@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from src.api.v1 import users, searches, opportunities, vehicles
+from src.api.v1 import users, searches, opportunities, vehicles, search_execution
 
 api_router = APIRouter()
 
@@ -7,4 +7,5 @@ api_router = APIRouter()
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(searches.router, prefix="/searches", tags=["searches"])
 api_router.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
-api_router.include_router(vehicles.router, prefix="/vehicles", tags=["vehicles"]) 
+api_router.include_router(vehicles.router, prefix="/vehicles", tags=["vehicles"])
+api_router.include_router(search_execution.router, prefix="/search-execution", tags=["search-execution"]) 
