@@ -98,6 +98,59 @@ class PerplexityTest(BaseModel):
         example="Used car market in Florida"
     )
 
+class PlaywrightTest(BaseModel):
+    """Test configuration for Playwright automation scraping"""
+    marketplace: str = Field(
+        default="cars_com",
+        description="Marketplace to scrape with Playwright",
+        example="cars_com"
+    )
+    make: str = Field(
+        default="Honda",
+        description="Car make",
+        example="Honda"
+    )
+    model: str = Field(
+        default="Accord",
+        description="Car model",
+        example="Accord"
+    )
+    year_min: int = Field(
+        default=2016,
+        description="Minimum year",
+        example=2016
+    )
+    year_max: int = Field(
+        default=2021,
+        description="Maximum year", 
+        example=2021
+    )
+    price_min: int = Field(
+        default=15000,
+        description="Minimum price",
+        example=15000
+    )
+    price_max: int = Field(
+        default=25000,
+        description="Maximum price",
+        example=25000
+    )
+    location_zip: str = Field(
+        default="33101",
+        description="ZIP code for search",
+        example="33101"
+    )
+    headless: bool = Field(
+        default=True,
+        description="Run browser in headless mode (faster)",
+        example=True
+    )
+    timeout_seconds: int = Field(
+        default=60,
+        description="Total operation timeout in seconds",
+        example=60
+    )
+
 
 router = APIRouter()
 
@@ -847,6 +900,216 @@ async def test_combined_workflow(
             "firecrawl_data": firecrawl_result,
             "ai_analysis": results["steps"].get("2_perplexity", {}).get("analysis")
         }
+        
+    except Exception as e:
+        return {"error": str(e), "success": False}
+
+@router.post("/test/playwright",
+    summary="🎭 Test Playwright Automation",
+    description="Interactive test for Playwright web automation scraping with real browser interaction",
+    tags=["🧪 Interactive Tests"])
+async def test_playwright_interactive(test_config: PlaywrightTest):
+    """
+    Test Playwright automation scraping with real browser interaction.
+    
+    **Advantages over Firecrawl:**
+    - **Real form interaction** - fills search forms like a real user
+    - **Accurate data extraction** - extracts actual displayed content
+    - **No API rate limits** - direct website interaction
+    - **Rich debugging** - screenshots and traces available
+    - **Anti-bot resistance** - looks like genuine user behavior
+    
+    **Try different settings:**
+    - **Marketplaces**: cars_com (implemented), edmunds (coming), cargurus (coming)
+    - **Headless mode**: True for speed, False for debugging
+    - **Timeout**: 30s for quick test, 60s+ for thorough scraping
+    """
+    try:
+        from src.services.playwright_service import PlaywrightScrapingService, PlaywrightConfig
+        
+        # Configure Playwright based on test settings
+        config = PlaywrightConfig(
+            headless=test_config.headless,
+            timeout=test_config.timeout_seconds * 1000  # Convert to milliseconds
+        )
+        
+        # Build search criteria
+        criteria = SearchCriteria(
+            makes=[test_config.make],
+            models=[test_config.model],
+            year_min=test_config.year_min,
+            year_max=test_config.year_max,
+            price_min=test_config.price_min,
+            price_max=test_config.price_max,
+            locations=["FL"]
+        )
+        
+        logger.info(f"🎭 Testing Playwright on {test_config.marketplace} for {test_config.make} {test_config.model}")
+        
+        start_time = datetime.utcnow()
+        
+        # Use async context manager for proper cleanup
+        async with PlaywrightScrapingService(config) as playwright_service:
+            result = await playwright_service.search_marketplace(
+                test_config.marketplace,
+                criteria,
+                test_config.location_zip
+            )
+        
+        end_time = datetime.utcnow()
+        
+        return {
+            "marketplace": test_config.marketplace,
+            "automation_engine": "playwright",
+            "search_criteria": {
+                "make": test_config.make,
+                "model": test_config.model,
+                "year_range": f"{test_config.year_min}-{test_config.year_max}",
+                "price_range": f"${test_config.price_min:,}-${test_config.price_max:,}",
+                "location": test_config.location_zip
+            },
+            "results": {
+                "success": result.success,
+                "vehicles_found": result.total_found,
+                "sample_vehicles": result.vehicles[:5] if result.vehicles else [],
+                "error": result.error_message
+            },
+            "automation_details": {
+                "browser_mode": "headless" if test_config.headless else "headed",
+                "form_interaction": "real user simulation",
+                "data_extraction": "from rendered page content",
+                "anti_detection": "enabled"
+            },
+            "performance": {
+                "duration_seconds": (end_time - start_time).total_seconds(),
+                "status": "✅ Fast" if (end_time - start_time).total_seconds() < 30 else "⏳ Slow",
+                "browser_startup_included": True
+            },
+            "content_preview": result.raw_content[:300] if result.raw_content else None
+        }
+        
+    except Exception as e:
+        logger.error(f"🎭 Playwright test error: {str(e)}")
+        return {
+            "marketplace": test_config.marketplace,
+            "automation_engine": "playwright",
+            "error": str(e),
+            "success": False,
+            "troubleshooting": {
+                "common_issues": [
+                    "Browser not installed: run 'npx playwright install'",
+                    "Timeout too short for browser startup",
+                    "Website blocking automation (try headless=False)",
+                    "Network connectivity issues"
+                ]
+            }
+        }
+
+@router.post("/test/comparison",
+    summary="⚔️ Compare Firecrawl vs Playwright",
+    description="Side-by-side comparison of Firecrawl API vs Playwright automation",
+    tags=["🧪 Interactive Tests"])
+async def test_comparison(test_config: MarketplaceTest):
+    """
+    Compare Firecrawl vs Playwright on the same search criteria.
+    
+    **Perfect for:**
+    - **Accuracy comparison** - which finds more relevant vehicles?
+    - **Speed comparison** - which is faster for your use case?
+    - **Reliability testing** - which handles errors better?
+    - **Data quality** - which extracts better vehicle information?
+    """
+    try:
+        results = {
+            "search_criteria": {
+                "make": test_config.make,
+                "model": test_config.model,
+                "year_range": f"{test_config.year_min}-{test_config.year_max}",
+                "price_range": f"${test_config.price_min:,}-${test_config.price_max:,}",
+                "marketplace": test_config.marketplace
+            },
+            "comparison": {}
+        }
+        
+        # Build criteria
+        criteria = SearchCriteria(
+            makes=[test_config.make],
+            models=[test_config.model],
+            year_min=test_config.year_min,
+            year_max=test_config.year_max,
+            price_min=test_config.price_min,
+            price_max=test_config.price_max,
+            locations=["FL"]
+        )
+        
+        # Test Firecrawl
+        firecrawl_start = datetime.utcnow()
+        try:
+            firecrawl_result = await test_firecrawl_interactive(test_config)
+            firecrawl_duration = (datetime.utcnow() - firecrawl_start).total_seconds()
+            
+            results["comparison"]["firecrawl"] = {
+                "method": "API scraping",
+                "duration_seconds": firecrawl_duration,
+                "success": firecrawl_result.get("results", {}).get("success", False),
+                "vehicles_found": firecrawl_result.get("results", {}).get("vehicles_found", 0),
+                "sample_vehicles": firecrawl_result.get("results", {}).get("sample_vehicles", [])[:3],
+                "pros": ["Fast API calls", "No browser overhead", "Rate limited"],
+                "cons": ["URL format issues", "May miss dynamic content", "Anti-bot blocks"]
+            }
+        except Exception as e:
+            results["comparison"]["firecrawl"] = {
+                "method": "API scraping",
+                "error": str(e),
+                "success": False
+            }
+        
+        # Test Playwright
+        playwright_start = datetime.utcnow()
+        try:
+            playwright_config = PlaywrightTest(
+                marketplace=test_config.marketplace,
+                make=test_config.make,
+                model=test_config.model,
+                year_min=test_config.year_min,
+                year_max=test_config.year_max,
+                price_min=test_config.price_min,
+                price_max=test_config.price_max,
+                location_zip=test_config.location_zip,
+                headless=True,
+                timeout_seconds=45
+            )
+            
+            playwright_result = await test_playwright_interactive(playwright_config)
+            playwright_duration = (datetime.utcnow() - playwright_start).total_seconds()
+            
+            results["comparison"]["playwright"] = {
+                "method": "browser automation",
+                "duration_seconds": playwright_duration,
+                "success": playwright_result.get("results", {}).get("success", False),
+                "vehicles_found": playwright_result.get("results", {}).get("vehicles_found", 0),
+                "sample_vehicles": playwright_result.get("results", {}).get("sample_vehicles", [])[:3],
+                "pros": ["Real user interaction", "Accurate data", "Anti-bot resistant"],
+                "cons": ["Slower startup", "More resources", "Complex setup"]
+            }
+        except Exception as e:
+            results["comparison"]["playwright"] = {
+                "method": "browser automation",
+                "error": str(e),
+                "success": False
+            }
+        
+        # Add comparison summary
+        firecrawl_vehicles = results["comparison"].get("firecrawl", {}).get("vehicles_found", 0)
+        playwright_vehicles = results["comparison"].get("playwright", {}).get("vehicles_found", 0)
+        
+        results["summary"] = {
+            "winner_accuracy": "playwright" if playwright_vehicles > firecrawl_vehicles else "firecrawl" if firecrawl_vehicles > playwright_vehicles else "tie",
+            "winner_speed": "firecrawl" if results["comparison"].get("firecrawl", {}).get("duration_seconds", 999) < results["comparison"].get("playwright", {}).get("duration_seconds", 999) else "playwright",
+            "recommendation": "Use Playwright for accuracy, Firecrawl for speed" if playwright_vehicles > firecrawl_vehicles else "Use Firecrawl for both speed and accuracy"
+        }
+        
+        return results
         
     except Exception as e:
         return {"error": str(e), "success": False}

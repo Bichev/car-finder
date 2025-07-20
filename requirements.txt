@@ -21,6 +21,9 @@ python-multipart==0.0.6
 httpx==0.25.2
 aiohttp==3.9.1
 
+# Web Automation & Scraping
+playwright==1.40.0
+
 # Notifications
 aiosmtplib==3.0.1
 python-telegram-bot==20.7
