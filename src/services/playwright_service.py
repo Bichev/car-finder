@@ -330,14 +330,10 @@ class PlaywrightScrapingService:
                                 await make_element.select_option(label=make)
                                 logger.info(f"🎭 Selected make '{make}' from dropdown: {selector}")
                             else:
-                                # Handle text input - for one_hitter, use full search query
+                                # Handle text input
                                 await make_element.clear()
-                                if 'one_hitter' in selector:
-                                    await make_element.fill(search_query)  # Use full "Honda Accord"
-                                    logger.info(f"🎭 Filled full search query '{search_query}' in one_hitter field")
-                                else:
-                                    await make_element.fill(make)
-                                    logger.info(f"🎭 Filled make '{make}' in input: {selector}")
+                                await make_element.fill(make)
+                                logger.info(f"🎭 Filled make '{make}' in input: {selector}")
                             make_filled = True
                             break
                     except Exception as e:
