@@ -53,13 +53,13 @@ class FirecrawlService:
             "cars_com": {
                 "base_url": "https://www.cars.com/shopping/results/",
                 "search_patterns": {
-                    "make": "make",
-                    "model": "model",
+                    "make": "makes[]",
+                    "model": "models[]",
                     "year_min": "year_min", 
                     "year_max": "year_max",
                     "price_min": "price_min",
                     "price_max": "price_max",
-                    "location": "stock_type"
+                    "location": "zip"
                 }
             },
             "cargurus": {
@@ -221,8 +221,10 @@ class FirecrawlService:
             ])
         elif marketplace == "cars_com":
             params.extend([
-                "maximum_distance=100",
-                "stock_type=used"
+                "stock_type=used",
+                "maximum_distance=100", 
+                "sort=price_lowest",
+                "page_size=100"
             ])
         elif marketplace == "cargurus":
             params.extend([

@@ -733,6 +733,17 @@ async def test_perplexity_interactive(test_config: PerplexityTest):
         end_time = datetime.utcnow()
         await perplexity.close()
         
+        # Parse response according to Perplexity API format
+        if response.get("success") and response.get("data"):
+            api_data = response["data"]
+            content = api_data.get("choices", [{}])[0].get("message", {}).get("content", "No response received")
+            usage = api_data.get("usage", {})
+            citations = api_data.get("citations", [])
+        else:
+            content = f"API Error: {response.get('error', 'Unknown error')}"
+            usage = {}
+            citations = []
+        
         return {
             "query": test_config.query,
             "configuration": {
@@ -740,16 +751,20 @@ async def test_perplexity_interactive(test_config: PerplexityTest):
                 "max_tokens": test_config.max_tokens,
                 "context": test_config.context
             },
-            "ai_analysis": response.get("content", "No response received"),
+            "ai_analysis": content,
+            "citations": citations[:5],  # Show first 5 citations
             "performance": {
                 "duration_seconds": (end_time - start_time).total_seconds(),
-                "tokens_used": response.get("usage", {}).get("total_tokens", 0),
+                "tokens_used": usage.get("total_tokens", 0),
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
                 "status": "✅ Fast" if (end_time - start_time).total_seconds() < 15 else "⏳ Slow"
             },
             "metadata": {
-                "success": True,
+                "success": response.get("success", False),
                 "model_used": test_config.model,
-                "timestamp": end_time.isoformat()
+                "timestamp": end_time.isoformat(),
+                "api_response_format": "perplexity_chat_completions"
             }
         }
         

@@ -271,7 +271,7 @@ class PerplexityService:
                 "factors": [f"Analysis unavailable: {str(e)}"]
             }
     
-    async def _query_perplexity(self, query: str, system_prompt: str = None) -> Dict[str, Any]:
+    async def _query_perplexity(self, query: str, system_prompt: str = None, max_tokens: int = None) -> Dict[str, Any]:
         """
         Send a query to Perplexity API
         
@@ -311,7 +311,7 @@ class PerplexityService:
             payload = {
                 "model": self.model,
                 "messages": messages,
-                "max_tokens": self.max_tokens,
+                "max_tokens": max_tokens or self.max_tokens,  # Use custom max_tokens if provided
                 "temperature": 0.2,  # Lower temperature for more factual responses
                 "top_p": 0.9,
                 "stream": False
