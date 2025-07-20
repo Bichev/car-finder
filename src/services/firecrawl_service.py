@@ -36,25 +36,25 @@ class FirecrawlService:
         self.base_url = "https://api.firecrawl.dev/v1"
         self.client = httpx.AsyncClient(timeout=60.0)
         
-        # Marketplace configurations
+        # Marketplace configurations based on real URL analysis
         self.marketplaces = {
             "edmunds": {
                 "base_url": "https://www.edmunds.com/inventory/srp.html",
                 "search_patterns": {
                     "make": "make",
                     "model": "model", 
-                    "year_min": "yearmin",
-                    "year_max": "yearmax",
-                    "price_min": "pricemin",
-                    "price_max": "pricemax",
+                    "year_min": "year_min",
+                    "year_max": "year_max",
+                    "price_min": "price_min",
+                    "price_max": "price_max",
                     "location": "zip"
                 }
             },
             "cars_com": {
                 "base_url": "https://www.cars.com/shopping/results/",
                 "search_patterns": {
-                    "make": "makes[]",
-                    "model": "models[]",
+                    "make": "makes%5B%5D",  # URL encoded makes[]
+                    "model": "models%5B%5D", # URL encoded models[]
                     "year_min": "year_min", 
                     "year_max": "year_max",
                     "price_min": "price_min",
@@ -63,15 +63,15 @@ class FirecrawlService:
                 }
             },
             "cargurus": {
-                "base_url": "https://www.cargurus.com/Cars/inventorylisting/viewDetailsFilterViewInventoryListing.action",
+                "base_url": "https://www.cargurus.com/Cars/l-Used-Audi-A4-Tampa-d396_L50",
                 "search_patterns": {
-                    "make": "sourceContext",
-                    "model": "modelFilters",
-                    "year_min": "minYear",
-                    "year_max": "maxYear", 
-                    "price_min": "minPrice",
-                    "price_max": "maxPrice",
-                    "location": "distance"
+                    "make": "make_lookup",  # Special handling needed
+                    "model": "model_lookup",
+                    "year_min": "year_min",
+                    "year_max": "year_max", 
+                    "price_min": "price_min",
+                    "price_max": "price_max",
+                    "location": "zip"
                 }
             }
         }
@@ -188,14 +188,23 @@ class FirecrawlService:
         
         params = []
         
-        # Add make/model filters
-        if criteria.makes:
-            for make in criteria.makes:
-                params.append(f"{patterns['make']}={make.lower()}")
-        
-        if criteria.models:
-            for model in criteria.models:
-                params.append(f"{patterns['model']}={model.lower()}")
+        # Add make/model filters with marketplace-specific formatting
+        if criteria.makes and criteria.models:
+            make = criteria.makes[0].lower()
+            model = criteria.models[0].lower()
+            
+            if marketplace == "cars_com":
+                # Cars.com format: makes%5B%5D=audi&models%5B%5D=audi-a4
+                params.append(f"{patterns['make']}={make}")
+                params.append(f"{patterns['model']}={make}-{model}")
+            elif marketplace == "edmunds":
+                # Edmunds format: make=audi&model=audi%7Ca4 (audi|a4 URL encoded)
+                params.append(f"{patterns['make']}={make}")
+                params.append(f"{patterns['model']}={make}%7C{model}")
+            else:
+                # Default format for other marketplaces
+                params.append(f"{patterns['make']}={make}")
+                params.append(f"{patterns['model']}={model}")
         
         # Add year range
         if criteria.year_min:
@@ -213,23 +222,22 @@ class FirecrawlService:
         if location_zip:
             params.append(f"{patterns['location']}={location_zip}")
         
-        # Special handling per marketplace
+        # Special handling per marketplace based on real URL analysis
         if marketplace == "edmunds":
             params.extend([
-                "radius=100",
-                "sort=price_asc"
+                "inventorytype=used%2Ccpo",  # URL encoded "used,cpo"
+                "radius=50"
             ])
         elif marketplace == "cars_com":
             params.extend([
                 "stock_type=used",
-                "maximum_distance=100", 
-                "sort=price_lowest",
-                "page_size=100"
+                "maximum_distance=30"  # Match real URL pattern
             ])
         elif marketplace == "cargurus":
+            # CarGurus uses a completely different URL structure
+            # We'll need special handling for this marketplace
             params.extend([
-                "distance=100",
-                "inventorySearchWidgetType=AUTO"
+                "distance=50"
             ])
         
         return f"{base_url}?{'&'.join(params)}"
