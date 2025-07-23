@@ -434,6 +434,53 @@ class PlaywrightScrapingService:
                 if not location_filled:
                     logger.warning("🎭 Could not set location")
                 
+                # Set sorting to lowest price BEFORE submitting search
+                logger.info("🎭 Setting sort to lowest price...")
+                sort_selectors = [
+                    'select[name="sort"]',  # Cars.com sort dropdown
+                    'select[data-testid="sort-dropdown"]',
+                    'select:has(option[value*="price"])',
+                    'select:has(option:contains("price"))',
+                    '[data-qa="sort-select"]'
+                ]
+                
+                sort_set = False
+                for selector in sort_selectors:
+                    try:
+                        sort_element = page.locator(selector)
+                        if await sort_element.count() > 0 and await sort_element.is_visible():
+                            # Try different price sorting values
+                            price_values = ["price_lowest", "price_asc", "price", "lowest_price", "price-asc"]
+                            for value in price_values:
+                                try:
+                                    await sort_element.select_option(value=value)
+                                    sort_set = True
+                                    logger.info(f"🎭 Set sort to: {value} using {selector}")
+                                    break
+                                except:
+                                    continue
+                            if sort_set:
+                                break
+                            
+                            # If value selection failed, try by label
+                            price_labels = ["Lowest price", "Price: Low to High", "Price (Low to High)", "Price - Low to High"]
+                            for label in price_labels:
+                                try:
+                                    await sort_element.select_option(label=label)
+                                    sort_set = True
+                                    logger.info(f"🎭 Set sort by label: {label} using {selector}")
+                                    break
+                                except:
+                                    continue
+                            if sort_set:
+                                break
+                    except Exception as e:
+                        logger.debug(f"🎭 Failed to set sort with {selector}: {str(e)}")
+                        continue
+                
+                if not sort_set:
+                    logger.warning("🎭 Could not set price sorting, using default sort")
+                
                 # Submit the search
                 logger.info("🎭 Submitting search...")
                 
@@ -497,9 +544,48 @@ class PlaywrightScrapingService:
                 
                 if submitted:
                     logger.info("🎭 Search submitted, waiting for results...")
-                    await page.wait_for_load_state("networkidle", timeout=20000)
-                    # Additional wait for dynamic content
-                    await page.wait_for_timeout(3000)
+                    
+                    # Try multiple wait strategies due to Cars.com having lots of dynamic content
+                    try:
+                        # First try networkidle with shorter timeout
+                        await page.wait_for_load_state("networkidle", timeout=10000)
+                        logger.info("🎭 Page reached networkidle state")
+                    except:
+                        logger.info("🎭 Networkidle timeout, trying domcontentloaded...")
+                        try:
+                            # Fallback to domcontentloaded
+                            await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                            logger.info("🎭 Page reached domcontentloaded state")
+                        except:
+                            logger.info("🎭 Load state timeout, continuing with fixed wait...")
+                    
+                    # Wait for vehicle cards to appear with multiple attempts
+                    logger.info("🎭 Waiting for vehicle content to load...")
+                    for attempt in range(3):
+                        await page.wait_for_timeout(2000)  # 2s wait
+                        
+                        # Check if vehicle cards are present
+                        vehicle_check = await page.locator('.vehicle-card').count()
+                        listing_check = await page.locator('div[data-listing-id]').count()
+                        
+                        logger.info(f"🎭 Attempt {attempt + 1}: Found {vehicle_check} vehicle-cards, {listing_check} listing-divs")
+                        
+                        if vehicle_check > 0 or listing_check > 0:
+                            logger.info(f"🎭 ✅ Vehicle content detected on attempt {attempt + 1}")
+                            break
+                        
+                        if attempt == 2:
+                            logger.warning("🎭 No vehicle content found after 3 attempts, proceeding anyway...")
+                    
+                    # Log post-submission URL and check for redirects
+                    post_submit_url = page.url
+                    logger.info(f"🎭 Post-submission URL: {post_submit_url}")
+                    
+                    # Check if we landed on a results page
+                    if "results" in post_submit_url or "shopping" in post_submit_url:
+                        logger.info("🎭 ✅ Successfully reached results page")
+                    else:
+                        logger.warning(f"🎭 ⚠️ May not be on results page: {post_submit_url}")
                 else:
                     logger.error("🎭 Could not submit search")
                     return []
@@ -517,10 +603,14 @@ class PlaywrightScrapingService:
             # Extract vehicle data with multiple approaches
             vehicles = []
             
-            # Try different selectors for vehicle listings
+            # Try different selectors for vehicle listings (Updated based on actual Cars.com HTML)
             vehicle_selectors = [
-                '[data-testid="listing-AVAILABLE"]',  # Original selector
-                '.vehicle-card',
+                '.vehicle-card',  # Primary Cars.com selector - confirmed from HTML
+                'div[data-listing-id]',  # Cars.com uses data-listing-id attributes
+                '[data-tracking-type="srp-vehicle-card"]',  # Cars.com tracking attribute
+                '.vehicle-cards .vehicle-card',  # More specific path
+                '[id^="vehicle-card-"]',  # Cars.com IDs like "vehicle-card-c7ac68c6..."
+                '[data-testid="listing-AVAILABLE"]',  # Fallback
                 '.listing',
                 '.vehicle-listing',
                 '.car-listing',
@@ -580,16 +670,29 @@ class PlaywrightScrapingService:
                     except:
                         continue
                 
-                # Get page text for debugging (first 500 chars)
+                # Enhanced debugging: check for specific Cars.com elements
                 try:
+                    # Check if vehicle-cards container exists
+                    vehicle_container = await page.locator('.vehicle-cards').count()
+                    logger.info(f"🎭 Found {vehicle_container} vehicle-cards containers")
+                    
+                    # Check for any divs with data-listing-id
+                    listing_divs = await page.locator('div[data-listing-id]').count()
+                    logger.info(f"🎭 Found {listing_divs} divs with data-listing-id")
+                    
+                    # Check for any elements with vehicle-card class
+                    all_vehicle_cards = await page.locator('[class*="vehicle-card"]').count()
+                    logger.info(f"🎭 Found {all_vehicle_cards} elements with vehicle-card in class")
+                    
+                    # Get page text for debugging (first 500 chars)
                     page_text = await page.locator('body').text_content()
                     if page_text:
                         logger.debug(f"🎭 Page content preview: {page_text[:500]}...")
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"🎭 Error during enhanced debugging: {str(e)}")
             
-            # Process found vehicle cards
-            for i, card in enumerate(vehicle_cards[:20]):  # Limit to first 20 results
+            # Process found vehicle cards on current page
+            for i, card in enumerate(vehicle_cards[:20]):  # Limit to first 20 results per page
                 try:
                     logger.debug(f"🎭 Processing vehicle card {i+1}/{len(vehicle_cards)}")
                     vehicle_data = await self._extract_cars_com_vehicle(card)
@@ -600,7 +703,201 @@ class PlaywrightScrapingService:
                     logger.debug(f"🎭 Error extracting vehicle {i+1}: {str(e)}")
                     continue
             
-            logger.info(f"🎭 Successfully extracted {len(vehicles)} vehicles from {len(vehicle_cards)} cards")
+            logger.info(f"🎭 Extracted {len(vehicles)} vehicles from current page")
+            
+            # Check for pagination and collect more results (temporarily limited for testing)
+            max_pages = 2  # Reduced to 2 pages for testing
+            current_page = 1
+            
+            while current_page < max_pages and len(vehicles) < 40:  # Max 40 vehicles for testing
+                try:
+                    # Look for "Next" button or page links (Updated for Cars.com structure)
+                    next_selectors = [
+                        '.sds-pagination__list a[aria-label="Go to next page"]',  # Cars.com specific
+                        '.sds-pagination a[aria-label*="next"]',  # Cars.com pagination
+                        'a[aria-label="Next Page"]',
+                        'a[title="Next"]',
+                        'a[aria-label="Go to next page"]',  # Common Cars.com pattern
+                        '.pagination a:has-text("Next")',
+                        '.pagination [aria-label*="next"]',
+                        'button:has-text("Next")',
+                        '.sds-pagination a:last-child',  # Cars.com specific pagination
+                        '[data-testid="pagination-next"]',
+                        '.sds-pagination__list li:last-child a',  # Cars.com pagination structure
+                        '.pagination-next a',  # Alternative structure
+                        'a:has-text("›")',  # Next arrow symbol
+                        'a:has-text("❯")',  # Alternative arrow
+                        'a[title*="Next"]'
+                    ]
+                    
+                    next_button = None
+                    for selector in next_selectors:
+                        try:
+                            element = page.locator(selector)
+                            if await element.count() > 0 and await element.is_visible():
+                                next_button = element
+                                logger.info(f"🎭 Found next page button: {selector}")
+                                break
+                        except:
+                            continue
+                    
+                    if not next_button:
+                        # Enhanced debugging for pagination elements
+                        logger.info("🎭 No next page button found, analyzing pagination...")
+                        
+                        try:
+                            # Check what pagination elements exist
+                            pagination_containers = await page.locator('.sds-pagination, .pagination, [class*="pagination"]').count()
+                            logger.info(f"🎭 Found {pagination_containers} pagination containers")
+                            
+                            # Check for any clickable pagination elements
+                            pagination_links = await page.locator('.sds-pagination a, .pagination a').count()
+                            logger.info(f"🎭 Found {pagination_links} pagination links")
+                            
+                            # Log all pagination link text for debugging
+                            if pagination_links > 0:
+                                all_links = await page.locator('.sds-pagination a, .pagination a').all()
+                                for i, link in enumerate(all_links[:10]):  # Limit to first 10
+                                    try:
+                                        link_text = await link.text_content()
+                                        aria_label = await link.get_attribute('aria-label')
+                                        href = await link.get_attribute('href')
+                                        logger.info(f"🎭 Pagination link {i+1}: text='{link_text}', aria-label='{aria_label}', href='{href}'")
+                                    except:
+                                        continue
+                            
+                            # Check for page numbers
+                            page_numbers = await page.locator('.sds-pagination__list li, .pagination li').count()
+                            logger.info(f"🎭 Found {page_numbers} pagination items")
+                            
+                        except Exception as e:
+                            logger.debug(f"🎭 Error during pagination debugging: {str(e)}")
+                        
+                        # Try alternative pagination methods
+                        logger.info("🎭 Trying alternative pagination methods...")
+                        
+                        # Look for "Load More" or "Show More" buttons
+                        load_more_selectors = [
+                            'button:has-text("Load more")',
+                            'button:has-text("Show more")',
+                            'button:has-text("More results")',
+                            'a:has-text("Load more")',
+                            'a:has-text("Show more")',
+                            '[data-testid="load-more"]',
+                            '.load-more-button'
+                        ]
+                        
+                        load_more_found = False
+                        for selector in load_more_selectors:
+                            try:
+                                element = page.locator(selector)
+                                if await element.count() > 0 and await element.is_visible():
+                                    logger.info(f"🎭 Found load more button: {selector}")
+                                    await element.click()
+                                    await page.wait_for_timeout(3000)  # Wait for new content
+                                    load_more_found = True
+                                    break
+                            except:
+                                continue
+                        
+                        if load_more_found:
+                            logger.info("🎭 Clicked load more, checking for new vehicles...")
+                            # Don't break, continue the pagination loop to process new vehicles
+                            next_button = "load_more"  # Set a dummy value to continue loop
+                        else:
+                            # Final fallback: try URL-based pagination
+                            logger.info("🎭 Trying URL-based pagination as final fallback...")
+                            current_url = page.url
+                            
+                            # Try to build next page URL
+                            next_page_url = None
+                            if "page=" in current_url:
+                                # URL has page parameter, increment it
+                                import re
+                                page_match = re.search(r'page=(\d+)', current_url)
+                                if page_match:
+                                    current_page_num = int(page_match.group(1))
+                                    next_page_url = current_url.replace(f"page={current_page_num}", f"page={current_page_num + 1}")
+                                    logger.info(f"🎭 Built next page URL: {next_page_url}")
+                            elif "results" in current_url and current_page == 1:
+                                # First page, try adding page parameter
+                                separator = "&" if "?" in current_url else "?"
+                                next_page_url = f"{current_url}{separator}page=2"
+                                logger.info(f"🎭 Built page 2 URL: {next_page_url}")
+                            
+                            if next_page_url:
+                                try:
+                                    logger.info(f"🎭 Navigating to URL: {next_page_url}")
+                                    await page.goto(next_page_url, wait_until="domcontentloaded")
+                                    await page.wait_for_timeout(3000)
+                                    
+                                    # Check if we got new vehicle content
+                                    vehicle_check = await page.locator('.vehicle-card').count()
+                                    if vehicle_check > 0:
+                                        logger.info(f"🎭 URL navigation successful, found {vehicle_check} vehicles")
+                                        next_button = "url_navigation"  # Continue pagination loop
+                                    else:
+                                        logger.info("🎭 URL navigation found no vehicles, stopping")
+                                        break
+                                except Exception as e:
+                                    logger.warning(f"🎭 URL navigation failed: {str(e)}")
+                                    break
+                            else:
+                                logger.info("🎭 No pagination options found, stopping")
+                                break
+                    
+                    # Handle different types of pagination
+                    if next_button == "load_more":
+                        # Already clicked load more button, just continue to extract new vehicles
+                        logger.info(f"🎭 Processing additional content from load more...")
+                    elif next_button == "url_navigation":
+                        # Already navigated to next page via URL, just continue to extract vehicles
+                        logger.info(f"🎭 Processing content from URL navigation...")
+                    else:
+                        # Check if next button is disabled
+                        is_disabled = await next_button.get_attribute("disabled") is not None
+                        if is_disabled:
+                            logger.info("🎭 Next button is disabled, reached last page")
+                            break
+                        
+                        logger.info(f"🎭 Navigating to page {current_page + 1}...")
+                        await next_button.click()
+                    
+                    # Wait for new page to load
+                    await page.wait_for_timeout(3000)
+                    
+                    # Wait for vehicle content to appear
+                    for attempt in range(2):
+                        await page.wait_for_timeout(2000)
+                        vehicle_check = await page.locator('.vehicle-card').count()
+                        if vehicle_check > 0:
+                            logger.info(f"🎭 Page {current_page + 1} loaded with {vehicle_check} vehicles")
+                            break
+                    
+                    # Extract vehicles from the new page
+                    page_vehicle_cards = await page.locator('.vehicle-card').all()
+                    page_vehicles = []
+                    
+                    for i, card in enumerate(page_vehicle_cards[:20]):  # Limit per page
+                        try:
+                            vehicle_data = await self._extract_cars_com_vehicle(card)
+                            if vehicle_data:
+                                page_vehicles.append(vehicle_data)
+                                logger.debug(f"🎭 Page {current_page + 1} - Vehicle {i+1}: {vehicle_data.get('make', 'Unknown')} {vehicle_data.get('model', 'Unknown')} - ${vehicle_data.get('price', 'Unknown')}")
+                        except Exception as e:
+                            logger.debug(f"🎭 Error extracting vehicle {i+1} on page {current_page + 1}: {str(e)}")
+                            continue
+                    
+                    vehicles.extend(page_vehicles)
+                    logger.info(f"🎭 Page {current_page + 1}: Added {len(page_vehicles)} vehicles (Total: {len(vehicles)})")
+                    
+                    current_page += 1
+                    
+                except Exception as e:
+                    logger.warning(f"🎭 Error during pagination on page {current_page + 1}: {str(e)}")
+                    break
+            
+            logger.info(f"🎭 Successfully extracted {len(vehicles)} vehicles from {current_page} page(s)")
             return vehicles
             
         except Exception as e:
@@ -622,9 +919,13 @@ class PlaywrightScrapingService:
             card_text = await card.text_content()
             logger.debug(f"🎭 Card text content: {card_text[:200]}...")
             
-            # Extract price with multiple selectors
+            # Extract price with multiple selectors (Updated for Cars.com structure)
             price_selectors = [
-                '[data-testid="listing-price"]',
+                '.price-section .primary-price',  # Cars.com specific price structure
+                '.price-section-vehicle-card .primary-price',  # More specific Cars.com path
+                '.price-section',  # Cars.com price container
+                '.vehicle-card .price',  # Generic price in card
+                '[data-testid="listing-price"]',  # Fallback
                 '.price',
                 '.listing-price',
                 '.vehicle-price',
@@ -659,9 +960,13 @@ class PlaywrightScrapingService:
                     price_found = True
                     logger.debug(f"🎭 Found price from text content: ${vehicle_data['price']}")
             
-            # Extract year, make, model with multiple selectors
+            # Extract year, make, model with multiple selectors (Updated for Cars.com)
             title_selectors = [
-                '[data-testid="listing-title"]',
+                '.vehicle-card-link',  # Cars.com main vehicle link contains title
+                '.vehicle-card h3',  # Cars.com title structure
+                '.vehicle-card h2',  # Alternative Cars.com title
+                '.vehicle-details .vehicle-info',  # Cars.com vehicle info section
+                '[data-testid="listing-title"]',  # Fallback
                 '.listing-title',
                 '.vehicle-title',
                 '.car-title',
@@ -708,9 +1013,12 @@ class PlaywrightScrapingService:
                     title_found = True
                     logger.debug(f"🎭 Found make/model from text content")
             
-            # Extract mileage with multiple selectors
+            # Extract mileage with multiple selectors (Updated for Cars.com)
             mileage_selectors = [
-                '[data-testid="listing-mileage"]',
+                '.vehicle-card .mileage',  # Cars.com mileage class
+                '.vehicle-details .mileage',  # Cars.com vehicle details
+                '.vehicle-card-main .mileage',  # Cars.com card main section
+                '[data-testid="listing-mileage"]',  # Fallback
                 '.mileage',
                 '.listing-mileage',
                 ':has-text("miles")',
@@ -755,12 +1063,15 @@ class PlaywrightScrapingService:
                     logger.debug(f"🎭 Failed to extract location with {selector}: {str(e)}")
                     continue
             
-            # Extract URL
+            # Extract URL (Updated for Cars.com structure)
             link_selectors = [
-                'a[href*="/vehicledetail/"]',
-                'a[href*="/vehicle/"]',
-                'a[href*="/listing/"]',
-                'a'
+                'a.vehicle-card-link',  # Cars.com main vehicle link class
+                'a[href*="/vehicledetail/"]',  # Cars.com vehicle detail URLs
+                '.vehicle-card-link',  # Cars.com link class
+                'a[data-linkname="vehicle-listing"]',  # Cars.com tracking attribute
+                'a[href*="/vehicle/"]',  # Generic vehicle URLs
+                'a[href*="/listing/"]',  # Generic listing URLs
+                'a'  # Fallback to any link
             ]
             
             for selector in link_selectors:
