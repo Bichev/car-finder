@@ -68,7 +68,7 @@ class PlaywrightScrapingService:
         try:
             self.playwright = await async_playwright().start()
             
-            # Launch browser with optimized settings
+            # Launch browser with optimized settings for better anti-detection
             # Note: Will try to use downloaded browsers, fallback to error with helpful message
             self.browser = await self.playwright.chromium.launch(
                 headless=self.config.headless,
@@ -76,7 +76,15 @@ class PlaywrightScrapingService:
                     '--no-sandbox',
                     '--disable-blink-features=AutomationControlled',
                     '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor'
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--no-first-run',
+                    '--no-default-browser-check',
+                    '--disable-extensions',
+                    '--disable-plugins',
+                    '--disable-images',  # Faster loading
+                    '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 ]
             )
             
@@ -1106,22 +1114,567 @@ class PlaywrightScrapingService:
             logger.debug(f"🎭 Error extracting Cars.com vehicle data: {str(e)}")
             return None
     
+    async def _extract_edmunds_vehicle(self, card) -> Optional[Dict[str, Any]]:
+        """Extract vehicle data from Edmunds listing card"""
+        try:
+            vehicle_data = {
+                "source": "edmunds.com",
+                "discovered_at": datetime.utcnow().isoformat(),
+                "is_active": True,
+                "images": [],
+                "features": []
+            }
+            
+            # Get all text content for debugging
+            card_text = await card.text_content()
+            logger.debug(f"🎭 Card text content: {card_text[:200]}...")
+            
+            # Extract price with multiple selectors (Edmunds structure)
+            price_selectors = [
+                '.price',  # Generic price class
+                '.pricing-info .price',  # Edmunds pricing structure
+                '.vehicle-price',  # Vehicle price class
+                '.listing-price',  # Listing price class
+                '[data-testid*="price"]',  # Test ID patterns
+                '.price-display',  # Price display class
+                '.cost',  # Cost class
+                ':has-text("$")'  # Any element containing $
+            ]
+            
+            price_found = False
+            for selector in price_selectors:
+                try:
+                    price_element = card.locator(selector)
+                    if await price_element.count() > 0:
+                        price_text = await price_element.text_content()
+                        if price_text and '$' in price_text:
+                            # Extract numeric price
+                            import re
+                            price_match = re.search(r'\$([0-9,]+)', price_text)
+                            if price_match:
+                                vehicle_data["price"] = int(price_match.group(1).replace(',', ''))
+                                price_found = True
+                                logger.debug(f"🎭 Found price: ${vehicle_data['price']} using {selector}")
+                                break
+                except Exception as e:
+                    logger.debug(f"🎭 Failed to extract price with {selector}: {str(e)}")
+                    continue
+            
+            # If no price found with selectors, try text content search
+            if not price_found and card_text:
+                import re
+                price_match = re.search(r'\$([0-9,]+)', card_text)
+                if price_match:
+                    vehicle_data["price"] = int(price_match.group(1).replace(',', ''))
+                    price_found = True
+                    logger.debug(f"🎭 Found price from text content: ${vehicle_data['price']}")
+            
+            # Extract year, make, model with multiple selectors (Edmunds structure)
+            title_selectors = [
+                '.vehicle-title',  # Edmunds vehicle title
+                '.listing-title',  # Listing title
+                '.vehicle-name',  # Vehicle name
+                '.car-title',  # Car title
+                'h2', 'h3', 'h4',  # Heading tags
+                '.title',  # Generic title
+                '[data-testid*="title"]',  # Test ID patterns
+                'a[href*="/inventory/"]',  # Inventory links
+                'a[href*="/vehicle/"]'  # Vehicle links
+            ]
+            
+            title_found = False
+            for selector in title_selectors:
+                try:
+                    title_element = card.locator(selector)
+                    if await title_element.count() > 0:
+                        title_text = await title_element.text_content()
+                        if title_text and any(word in title_text.lower() for word in ['honda', 'accord', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025']):
+                            # Parse title like "2019 Honda Accord EX"
+                            title_parts = title_text.strip().split()
+                            if len(title_parts) >= 3:
+                                year_candidate = title_parts[0]
+                                if year_candidate.isdigit() and 2000 <= int(year_candidate) <= 2030:
+                                    vehicle_data["year"] = int(year_candidate)
+                                    vehicle_data["make"] = title_parts[1]
+                                    vehicle_data["model"] = title_parts[2]
+                                    title_found = True
+                                    logger.debug(f"🎭 Found title: {title_text} using {selector}")
+                                    break
+                except Exception as e:
+                    logger.debug(f"🎭 Failed to extract title with {selector}: {str(e)}")
+                    continue
+            
+            # If no title found with selectors, try text content search
+            if not title_found and card_text:
+                import re
+                # Look for year patterns
+                year_match = re.search(r'\b(20[0-2][0-9])\b', card_text)
+                if year_match:
+                    vehicle_data["year"] = int(year_match.group(1))
+                
+                # Look for Honda/Accord specifically
+                if 'honda' in card_text.lower():
+                    vehicle_data["make"] = "Honda"
+                if 'accord' in card_text.lower():
+                    vehicle_data["model"] = "Accord"
+                
+                if "make" in vehicle_data and "model" in vehicle_data:
+                    title_found = True
+                    logger.debug(f"🎭 Found make/model from text content")
+            
+            # Extract mileage with multiple selectors (Edmunds structure)
+            mileage_selectors = [
+                '.mileage',  # Mileage class
+                '.vehicle-mileage',  # Vehicle mileage
+                '.odometer',  # Odometer reading
+                '[data-testid*="mileage"]',  # Test ID patterns
+                ':has-text("miles")',  # Text containing "miles"
+                ':has-text("mi")'  # Text containing "mi"
+            ]
+            
+            for selector in mileage_selectors:
+                try:
+                    mileage_element = card.locator(selector)
+                    if await mileage_element.count() > 0:
+                        mileage_text = await mileage_element.text_content()
+                        if mileage_text:
+                            # Extract numeric mileage
+                            import re
+                            mileage_match = re.search(r'([0-9,]+)', mileage_text)
+                            if mileage_match:
+                                vehicle_data["mileage"] = int(mileage_match.group(1).replace(',', ''))
+                                logger.debug(f"🎭 Found mileage: {vehicle_data['mileage']} using {selector}")
+                                break
+                except Exception as e:
+                    logger.debug(f"🎭 Failed to extract mileage with {selector}: {str(e)}")
+                    continue
+            
+            # Extract location with multiple selectors
+            location_selectors = [
+                '.location',  # Location class
+                '.dealer-location',  # Dealer location
+                '.listing-location',  # Listing location
+                '.vehicle-location',  # Vehicle location
+                '[data-testid*="location"]'  # Test ID patterns
+            ]
+            
+            for selector in location_selectors:
+                try:
+                    location_element = card.locator(selector)
+                    if await location_element.count() > 0:
+                        location_text = await location_element.text_content()
+                        if location_text:
+                            vehicle_data["location"] = location_text.strip()
+                            logger.debug(f"🎭 Found location: {vehicle_data['location']} using {selector}")
+                            break
+                except Exception as e:
+                    logger.debug(f"🎭 Failed to extract location with {selector}: {str(e)}")
+                    continue
+            
+            # Extract URL (Edmunds structure)
+            link_selectors = [
+                'a[href*="/inventory/"]',  # Edmunds inventory URLs
+                'a[href*="/vehicle/"]',  # Edmunds vehicle URLs
+                'a[href*="/used/"]',  # Used vehicle URLs
+                'a[href*="/new/"]',  # New vehicle URLs
+                '.vehicle-link',  # Vehicle link class
+                '.listing-link',  # Listing link class
+                'a'  # Fallback to any link
+            ]
+            
+            for selector in link_selectors:
+                try:
+                    link_element = card.locator(selector)
+                    if await link_element.count() > 0:
+                        href = await link_element.get_attribute('href')
+                        if href and ('vehicle' in href or 'inventory' in href):
+                            vehicle_data["url"] = href if href.startswith('http') else f"https://www.edmunds.com{href}"
+                            logger.debug(f"🎭 Found URL: {vehicle_data['url']} using {selector}")
+                            break
+                except Exception as e:
+                    logger.debug(f"🎭 Failed to extract URL with {selector}: {str(e)}")
+                    continue
+            
+            # Generate external ID if we have enough data
+            if "make" in vehicle_data and "model" in vehicle_data:
+                timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                price_part = vehicle_data.get("price", "unknown")
+                year_part = vehicle_data.get("year", "unknown")
+                vehicle_data["external_id"] = f"{vehicle_data['make']}_{vehicle_data['model']}_{year_part}_{price_part}_{timestamp}"
+            
+            # Only return if we have essential data (at least make or price)
+            if "price" in vehicle_data or "make" in vehicle_data:
+                logger.debug(f"🎭 Successfully extracted vehicle data: {vehicle_data}")
+                return vehicle_data
+            else:
+                logger.debug("🎭 Not enough data extracted to create vehicle record")
+                return None
+            
+        except Exception as e:
+            logger.debug(f"🎭 Error extracting Edmunds vehicle data: {str(e)}")
+            return None
+    
     async def _scrape_edmunds(self, page: Page, criteria: SearchCriteria, location_zip: str) -> List[Dict[str, Any]]:
         """Scrape Edmunds using form automation"""
         try:
             logger.info("🎭 Navigating to Edmunds...")
-            await page.goto("https://www.edmunds.com/inventory/", wait_until="domcontentloaded")
+            
+            # Set extra headers to look more like a real browser
+            await page.set_extra_http_headers({
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Cache-Control': 'max-age=0'
+            })
+            
+            # Try to navigate to Edmunds with error handling
+            try:
+                await page.goto("https://www.edmunds.com/", wait_until="domcontentloaded", timeout=30000)
+            except Exception as nav_error:
+                logger.warning(f"🎭 Error navigating to main Edmunds page: {str(nav_error)}")
+                # Try alternative approach - navigate directly to inventory
+                if criteria.makes and criteria.models:
+                    make = criteria.makes[0]
+                    model = criteria.models[0]
+                    year = criteria.year_min if criteria.year_min else "2020"
+                    
+                    # Try direct inventory URL
+                    inventory_url = f"https://www.edmunds.com/inventory/srp.html?make={make.lower()}&model={model.lower().replace(' ', '-')}&year={year}"
+                    logger.info(f"🎭 Trying direct inventory URL: {inventory_url}")
+                    
+                    try:
+                        await page.goto(inventory_url, wait_until="domcontentloaded", timeout=30000)
+                    except Exception as inv_error:
+                        logger.error(f"🎭 Failed to access Edmunds inventory: {str(inv_error)}")
+                        # Try even simpler URL
+                        simple_url = f"https://www.edmunds.com/{make.lower()}/{model.lower().replace(' ', '-')}/"
+                        logger.info(f"🎭 Trying model page URL: {simple_url}")
+                        await page.goto(simple_url, wait_until="domcontentloaded", timeout=30000)
+                else:
+                    # If no criteria, try cars.com style search
+                    logger.info("🎭 Trying Edmunds used cars page...")
+                    await page.goto("https://www.edmunds.com/used-cars-for-sale/", wait_until="domcontentloaded", timeout=30000)
             
             # Wait for page to load
-            await page.wait_for_timeout(3000)
+            await page.wait_for_timeout(5000)
+            logger.info("🎭 Page loaded, looking for search elements...")
             
-            # Edmunds search implementation would go here
-            # For now, return empty list as placeholder
-            logger.info("🎭 Edmunds scraper - implementation in progress")
-            return []
+            # Take a screenshot for debugging and log page info
+            current_url = page.url
+            page_title = await page.title()
+            logger.info(f"🎭 Current URL: {current_url}")
+            logger.info(f"🎭 Page title: {page_title}")
+            
+            # Build search query for Edmunds' semantic search
+            if criteria.makes and criteria.models:
+                make = criteria.makes[0]
+                model = criteria.models[0]
+                search_query = f"{make} {model}"
+                logger.info(f"🎭 Searching for: {search_query}")
+                
+                # Try using Edmunds' global search first (semantic search)
+                search_found = False
+                search_selectors = [
+                    'textarea[name="query"]',  # Edmunds main search field (PRIORITY)
+                    '.global-search-input',  # Edmunds global search class
+                    'textarea[placeholder*="looking for"]',  # Edmunds placeholder text
+                    'textarea[aria-label="Search:"]',  # Edmunds aria label
+                    '.autosized-area-field',  # Edmunds search field class
+                    'input[type="search"]',
+                    '.search-input',
+                    '#search-input'
+                ]
+                
+                for selector in search_selectors:
+                    try:
+                        element = page.locator(selector)
+                        if await element.count() > 0 and await element.is_visible():
+                            logger.info(f"🎭 Found search input: {selector}")
+                            await element.clear()
+                            await element.fill(search_query)
+                            search_found = True
+                            logger.info(f"🎭 Successfully filled search input: {selector}")
+                            break
+                    except Exception as e:
+                        logger.debug(f"🎭 Failed to fill {selector}: {str(e)}")
+                        continue
+                
+                if not search_found:
+                    logger.warning("🎭 Global search not found, trying direct inventory navigation...")
+                    # Navigate directly to inventory with make/model/year
+                    year = criteria.year_min if criteria.year_min else "2020"  # Default year
+                    inventory_url = f"https://www.edmunds.com/inventory/srp.html?make={make.lower()}&model={model.lower()}&year={year}"
+                    logger.info(f"🎭 Navigating directly to: {inventory_url}")
+                    await page.goto(inventory_url, wait_until="domcontentloaded")
+                    await page.wait_for_timeout(3000)
+                else:
+                    # Submit the search
+                    logger.info("🎭 Submitting search...")
+                    
+                    # Try different submission methods
+                    submitted = False
+                    
+                    # Method 1: Press Enter on search field
+                    search_input = page.locator('textarea[name="query"]')
+                    if await search_input.count() > 0:
+                        await search_input.press("Enter")
+                        submitted = True
+                        logger.info("🎭 Pressed Enter on search field")
+                    
+                    # Method 2: Look for search button
+                    if not submitted:
+                        search_button_selectors = [
+                            '.global-search-form button[type="submit"]',
+                            '.search-button',
+                            'button:has-text("Search")',
+                            '[data-tracking-id*="search"]'
+                        ]
+                        
+                        for selector in search_button_selectors:
+                            try:
+                                button = page.locator(selector)
+                                if await button.count() > 0 and await button.is_visible():
+                                    await button.click()
+                                    submitted = True
+                                    logger.info(f"🎭 Clicked search button: {selector}")
+                                    break
+                            except Exception as e:
+                                logger.debug(f"🎭 Failed to click button {selector}: {str(e)}")
+                                continue
+                    
+                    if submitted:
+                        logger.info("🎭 Search submitted, waiting for results...")
+                        
+                        # Wait for navigation to results page
+                        try:
+                            await page.wait_for_load_state("networkidle", timeout=10000)
+                            logger.info("🎭 Page reached networkidle state")
+                        except:
+                            logger.info("🎭 Networkidle timeout, continuing...")
+                            await page.wait_for_timeout(3000)
+                    else:
+                        logger.error("🎭 Could not submit search")
+                        return []
+            
+            # Wait for results to load and log current URL
+            current_url = page.url
+            logger.info(f"🎭 Current page URL: {current_url}")
+            
+            # Check if we're on a results page
+            if "inventory" in current_url or "search" in current_url or "srp" in current_url:
+                logger.info("🎭 Appears to be on a results page")
+            else:
+                logger.warning(f"🎭 Unexpected page URL: {current_url}")
+            
+            # Extract vehicle data with multiple approaches
+            vehicles = []
+            
+            # Try different selectors for vehicle listings (Based on Edmunds structure)
+            vehicle_selectors = [
+                '.inventory-listing',  # Common Edmunds inventory class
+                '.vehicle-card',  # Standard vehicle card class
+                '.listing-card',  # Alternative listing class
+                '[data-testid*="vehicle"]',  # Test ID patterns
+                '[data-testid*="listing"]',  # Test ID patterns
+                '.search-result',  # Generic search result
+                '.car-listing',  # Car listing class
+                '[class*="listing"]',  # Any class containing "listing"
+                '[class*="vehicle"]',  # Any class containing "vehicle"
+                '.result-item',  # Generic result item
+                '.inventory-item'  # Inventory item class
+            ]
+            
+            vehicle_cards = []
+            used_selector = None
+            
+            for selector in vehicle_selectors:
+                try:
+                    cards = await page.locator(selector).all()
+                    if len(cards) > 0:
+                        vehicle_cards = cards
+                        used_selector = selector
+                        logger.info(f"🎭 Found {len(vehicle_cards)} vehicle cards using selector: {selector}")
+                        break
+                except Exception as e:
+                    logger.debug(f"🎭 Failed to find vehicles with {selector}: {str(e)}")
+                    continue
+            
+            # If no cards found with specific selectors, try generic approach
+            if not vehicle_cards:
+                logger.warning("🎭 No vehicle cards found with specific selectors, trying generic approach...")
+                
+                # Look for any elements that might contain vehicle data
+                potential_cards = await page.locator('div:has-text("$"), div:has-text("Honda"), div:has-text("Accord")').all()
+                if potential_cards:
+                    logger.info(f"🎭 Found {len(potential_cards)} potential vehicle elements")
+                    vehicle_cards = potential_cards[:20]  # Limit to reasonable number
+                    used_selector = "generic price/vehicle text"
+            
+            # If still no results, log page content for debugging
+            if not vehicle_cards:
+                logger.warning("🎭 No vehicle cards found, checking page content...")
+                page_title = await page.title()
+                logger.info(f"🎭 Page title: {page_title}")
+                
+                # Check if there's a "no results" message
+                no_results_selectors = [
+                    ':has-text("No results")',
+                    ':has-text("no vehicles")',
+                    ':has-text("0 results")',
+                    '.no-results',
+                    '.empty-results'
+                ]
+                
+                for selector in no_results_selectors:
+                    try:
+                        no_results = await page.locator(selector).count()
+                        if no_results > 0:
+                            logger.info(f"🎭 Found 'no results' message: {selector}")
+                            break
+                    except:
+                        continue
+                
+                # Enhanced debugging: check for specific Edmunds elements
+                try:
+                    # Check for inventory containers
+                    inventory_containers = await page.locator('.inventory, .search-results, .listings').count()
+                    logger.info(f"🎭 Found {inventory_containers} inventory containers")
+                    
+                    # Get page text for debugging (first 500 chars)
+                    page_text = await page.locator('body').text_content()
+                    if page_text:
+                        logger.debug(f"🎭 Page content preview: {page_text[:500]}...")
+                except Exception as e:
+                    logger.debug(f"🎭 Error during enhanced debugging: {str(e)}")
+            
+            # Process found vehicle cards on current page
+            for i, card in enumerate(vehicle_cards[:20]):  # Limit to first 20 results per page
+                try:
+                    logger.debug(f"🎭 Processing vehicle card {i+1}/{len(vehicle_cards)}")
+                    vehicle_data = await self._extract_edmunds_vehicle(card)
+                    if vehicle_data:
+                        vehicles.append(vehicle_data)
+                        logger.info(f"🎭 Successfully extracted vehicle: {vehicle_data.get('make', 'Unknown')} {vehicle_data.get('model', 'Unknown')} - ${vehicle_data.get('price', 'Unknown')}")
+                except Exception as e:
+                    logger.debug(f"🎭 Error extracting vehicle {i+1}: {str(e)}")
+                    continue
+            
+            logger.info(f"🎭 Extracted {len(vehicles)} vehicles from current page")
+            
+            # Check for pagination and collect more results (limited for testing)
+            max_pages = 2  # Reduced to 2 pages for testing
+            current_page = 1
+            
+            while current_page < max_pages and len(vehicles) < 40:  # Max 40 vehicles for testing
+                try:
+                    # Look for "Next" button or page links (Edmunds structure)
+                    next_selectors = [
+                        '.pagination a[aria-label="Next Page"]',  # Edmunds pagination
+                        '.pagination a[title="Next"]',
+                        'a[aria-label="Go to next page"]',
+                        '.pagination a:has-text("Next")',
+                        '.pagination [aria-label*="next"]',
+                        'button:has-text("Next")',
+                        '[data-testid="pagination-next"]',
+                        'a:has-text("›")',  # Next arrow symbol
+                        'a:has-text("❯")',  # Alternative arrow
+                        'a[title*="Next"]'
+                    ]
+                    
+                    next_button = None
+                    for selector in next_selectors:
+                        try:
+                            element = page.locator(selector)
+                            if await element.count() > 0 and await element.is_visible():
+                                next_button = element
+                                logger.info(f"🎭 Found next page button: {selector}")
+                                break
+                        except:
+                            continue
+                    
+                    if not next_button:
+                        logger.info("🎭 No next page button found, stopping pagination")
+                        break
+                    
+                    # Check if next button is disabled
+                    is_disabled = await next_button.get_attribute("disabled") is not None
+                    if is_disabled:
+                        logger.info("🎭 Next button is disabled, reached last page")
+                        break
+                    
+                    logger.info(f"🎭 Navigating to page {current_page + 1}...")
+                    await next_button.click()
+                    
+                    # Wait for new page to load
+                    await page.wait_for_timeout(3000)
+                    
+                    # Wait for vehicle content to appear
+                    for attempt in range(2):
+                        await page.wait_for_timeout(2000)
+                        vehicle_check = await page.locator('.inventory-listing, .vehicle-card').count()
+                        if vehicle_check > 0:
+                            logger.info(f"🎭 Page {current_page + 1} loaded with {vehicle_check} vehicles")
+                            break
+                    
+                    # Extract vehicles from the new page
+                    page_vehicle_cards = await page.locator('.inventory-listing, .vehicle-card').all()
+                    page_vehicles = []
+                    
+                    for i, card in enumerate(page_vehicle_cards[:20]):  # Limit per page
+                        try:
+                            vehicle_data = await self._extract_edmunds_vehicle(card)
+                            if vehicle_data:
+                                page_vehicles.append(vehicle_data)
+                                logger.debug(f"🎭 Page {current_page + 1} - Vehicle {i+1}: {vehicle_data.get('make', 'Unknown')} {vehicle_data.get('model', 'Unknown')} - ${vehicle_data.get('price', 'Unknown')}")
+                        except Exception as e:
+                            logger.debug(f"🎭 Error extracting vehicle {i+1} on page {current_page + 1}: {str(e)}")
+                            continue
+                    
+                    vehicles.extend(page_vehicles)
+                    logger.info(f"🎭 Page {current_page + 1}: Added {len(page_vehicles)} vehicles (Total: {len(vehicles)})")
+                    
+                    current_page += 1
+                    
+                except Exception as e:
+                    logger.warning(f"🎭 Error during pagination on page {current_page + 1}: {str(e)}")
+                    break
+            
+            logger.info(f"🎭 Successfully extracted {len(vehicles)} vehicles from {current_page} page(s)")
+            return vehicles
             
         except Exception as e:
-            logger.error(f"🎭 Edmunds scraping error: {str(e)}")
+            error_message = str(e)
+            logger.error(f"🎭 Edmunds scraping error: {error_message}")
+            
+            # Check if this is an anti-bot protection error
+            if "ERR_HTTP2_PROTOCOL_ERROR" in error_message or "net::ERR" in error_message:
+                logger.warning("🎭 Edmunds appears to be blocking automated access with anti-bot protection")
+                logger.info("🎭 This is common for major automotive sites - consider using their API or manual search")
+                
+                # Return a placeholder vehicle with information about the limitation
+                return [{
+                    "source": "edmunds.com",
+                    "discovered_at": datetime.utcnow().isoformat(),
+                    "is_active": False,
+                    "make": "INFO",
+                    "model": "ACCESS_BLOCKED",
+                    "year": 2024,
+                    "price": 0,
+                    "mileage": 0,
+                    "location": "N/A",
+                    "url": "https://www.edmunds.com/",
+                    "external_id": f"edmunds_blocked_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+                    "error_details": "Edmunds is blocking automated access with anti-bot protection. Please visit their website manually or use their official API.",
+                    "images": [],
+                    "features": ["Anti-bot protection detected", "Manual access required"]
+                }]
+            
             return []
     
     async def _scrape_cargurus(self, page: Page, criteria: SearchCriteria, location_zip: str) -> List[Dict[str, Any]]:
