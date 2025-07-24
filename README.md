@@ -195,8 +195,8 @@ graph TB
         F --> G[Firecrawl Service]
         F --> H[Playwright Service]
         F --> I[Perplexity AI Service]
-        G --> J[Cars.com Scraper]
-        H --> K[Edmunds Scraper]
+        G --> J[Edmunds Scraper]
+        H --> K[Cars.com Scraper]
         I --> L[AI Market Analysis]
     end
     
