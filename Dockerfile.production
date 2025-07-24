@@ -72,22 +72,21 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers
-RUN playwright install chromium && \
-    playwright install-deps chromium
-
-# Copy application code
-COPY --chown=appuser:appuser . /app/
+# Copy application code (before switching user)
+COPY . /app/
 
 # Copy built frontend from builder stage
-COPY --from=frontend-builder --chown=appuser:appuser /app/frontend/dist /app/static/
+COPY --from=frontend-builder /app/frontend/dist /app/static/
 
-# Create necessary directories
+# Create necessary directories and set ownership
 RUN mkdir -p /app/logs && \
     chown -R appuser:appuser /app
 
-# Switch to non-root user
+# Switch to non-root user BEFORE installing Playwright browsers
 USER appuser
+
+# Install Playwright browsers as appuser (so they're accessible to appuser)
+RUN playwright install chromium
 
 # Expose port
 EXPOSE 8000
