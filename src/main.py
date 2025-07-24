@@ -51,11 +51,19 @@ app.add_middleware(
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
-# Static files configuration
+# Static files configuration - serve React build output
 static_dir = Path("/app/static")
+assets_dir = Path("/app/static/assets")
+
 if static_dir.exists():
+    # Mount assets directory directly at /assets (for React JS/CSS files)
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+        logger.info(f"Mounted assets from {assets_dir} at /assets")
+    
+    # Also mount the static directory for any other static files
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-    logger.info(f"Mounted static files from {static_dir}")
+    logger.info(f"Mounted static files from {static_dir} at /static")
 else:
     logger.warning(f"Static directory {static_dir} not found")
 
