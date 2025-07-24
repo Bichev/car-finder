@@ -4,16 +4,24 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV NODE_VERSION=18
 
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies including Playwright browser requirements
+# Install system dependencies including Node.js and Playwright browser requirements
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
+        wget \
+        ca-certificates \
+        gnupg \
+        # Node.js installation dependencies
+        && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+        && apt-get install -y nodejs \
         # Playwright browser dependencies
+        && apt-get install -y --no-install-recommends \
         libxext6 \
         libxfixes3 \
         libxrandr2 \
@@ -37,6 +45,10 @@ RUN apt-get update \
         libxcursor1 \
         libxi6 \
         libxtst6 \
+        # Additional dependencies for Playwright
+        xvfb \
+        fonts-liberation \
+        fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -44,8 +56,24 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Install Playwright browsers (before switching to non-root user)
+RUN playwright install chromium
+RUN playwright install-deps chromium
+
+# Copy and build frontend
+COPY frontend/package*.json ./frontend/
+WORKDIR /app/frontend
+RUN npm ci --only=production
+
+COPY frontend/ ./
+RUN npm run build
+
+# Switch back to app directory and copy backend
+WORKDIR /app
 COPY . .
+
+# Move built frontend to static directory
+RUN mkdir -p /app/static && cp -r /app/frontend/dist/* /app/static/
 
 # Create non-root user
 RUN adduser --disabled-password --gecos '' --shell /bin/bash user \

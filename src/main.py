@@ -1,7 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import uvicorn
+import os
+from pathlib import Path
 from loguru import logger
 
 from src.core.config import settings
@@ -47,21 +51,44 @@ app.add_middleware(
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
-
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "message": "Car Finder API",
-        "version": "1.0.0",
-        "status": "running"
-    }
+# Static files configuration
+static_dir = Path("/app/static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    logger.info(f"Mounted static files from {static_dir}")
+else:
+    logger.warning(f"Static directory {static_dir} not found")
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
+    """Health check endpoint for Render"""
+    return {"status": "healthy", "service": "car-finder"}
+
+
+# Catch-all route for React SPA (must be last)
+@app.get("/{path:path}")
+async def serve_spa(request: Request, path: str = ""):
+    """
+    Serve React SPA for all non-API routes
+    This handles client-side routing
+    """
+    # Don't serve SPA for API routes
+    if path.startswith("api/") or path.startswith("docs") or path.startswith("redoc"):
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Serve index.html for SPA routes
+    index_file = Path("/app/static/index.html")
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    else:
+        # Fallback response if no frontend built
+        return {
+            "message": "Car Finder API", 
+            "version": "1.0.0",
+            "status": "running",
+            "frontend": "not built"
+        }
 
 
 if __name__ == "__main__":
