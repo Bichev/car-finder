@@ -57,8 +57,8 @@ print_info "Stopping existing containers..."
 docker-compose down --remove-orphans || true
 
 # Remove old images (optional - comment out to speed up deployments)
-print_info "Cleaning up old images..."
-docker system prune -f || true
+# print_info "Cleaning up old images..."
+# docker system prune -f || true
 
 # Build and start services
 print_info "Building and starting services..."
