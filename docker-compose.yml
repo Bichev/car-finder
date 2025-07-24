@@ -1,87 +1,100 @@
 version: '3.8'
 
 services:
-  app:
-    build: .
+  # MongoDB Database
+  car-finder-mongo:
+    image: mongo:7.0
+    container_name: car-finder-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: carfinder
+      MONGO_INITDB_ROOT_PASSWORD: carfinder123
+      MONGO_INITDB_DATABASE: car_finder
     ports:
-      - "8000:8000"
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017/carfinder
-      - REDIS_URL=redis://redis:6379
-      - DEBUG=true
-      # Add your SMTP and API keys in .env file
-      - SMTP_HOST=${SMTP_HOST:-localhost}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
-    depends_on:
-      - mongodb
-      - redis
+      - "27018:27017"  # Custom port to avoid conflicts
     volumes:
-      - .:/app
-    restart: unless-stopped
+      - car_finder_mongo_data:/data/db
+      - car_finder_mongo_config:/data/configdb
+    networks:
+      - car-finder-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  mongodb:
-    image: mongo:7
+  # Car Finder Backend (FastAPI + Playwright)
+  car-finder-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: car-finder-backend
+    restart: unless-stopped
     environment:
-      MONGO_INITDB_DATABASE: carfinder
-    volumes:
-      - mongodb_data:/data/db
+      - PYTHONPATH=/app
+      - MONGODB_URL=mongodb://carfinder:carfinder123@car-finder-mongo:27017/car_finder?authSource=admin
+      - PORT=8000
+      - ENVIRONMENT=production
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,${EC2_PUBLIC_IP:-},${DOMAIN_NAME:-}
     ports:
-      - "27017:27017"
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
+      - "8001:8000"  # Custom external port to avoid conflicts
     volumes:
-      - redis_data:/data
+      - car_finder_logs:/app/logs
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # For Playwright display
+    networks:
+      - car-finder-network
+    depends_on:
+      car-finder-mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Optional: MongoDB Admin Interface (Mongo Express)
+  car-finder-mongo-admin:
+    image: mongo-express:1.0.2
+    container_name: car-finder-mongo-admin
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: carfinder
+      ME_CONFIG_MONGODB_ADMINPASSWORD: carfinder123
+      ME_CONFIG_MONGODB_URL: mongodb://carfinder:carfinder123@car-finder-mongo:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+      ME_CONFIG_MONGODB_SERVER: car-finder-mongo
     ports:
-      - "6379:6379"
-    restart: unless-stopped
-
-  worker:
-    build: .
-    command: celery -A src.services.tasks worker --loglevel=info
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017/carfinder
-      - REDIS_URL=redis://redis:6379
-      - SMTP_HOST=${SMTP_HOST:-localhost}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+      - "8082:8081"  # Custom port for admin interface
+    networks:
+      - car-finder-network
     depends_on:
-      - redis
-      - mongodb
-    volumes:
-      - .:/app
-    restart: unless-stopped
+      car-finder-mongo:
+        condition: service_healthy
 
-  scheduler:
-    build: .
-    command: python -m src.services.scheduler
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017/carfinder
-      - REDIS_URL=redis://redis:6379
-      - SMTP_HOST=${SMTP_HOST:-localhost}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
-    depends_on:
-      - redis
-      - mongodb
-    volumes:
-      - .:/app
-    restart: unless-stopped
+# Isolated Network
+networks:
+  car-finder-network:
+    driver: bridge
+    name: car-finder-network
 
+# Persistent Volumes
 volumes:
-  mongodb_data:
-  redis_data: 
+  car_finder_mongo_data:
+    name: car_finder_mongo_data
+  car_finder_mongo_config:
+    name: car_finder_mongo_config
+  car_finder_logs:
+    name: car_finder_logs 
