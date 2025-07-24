@@ -61,10 +61,26 @@ if static_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
         logger.info(f"Mounted assets from {assets_dir} at /assets")
     
-    # Mount the entire static directory at root for favicons, icons, etc.
-    # This must come AFTER /assets mounting and BEFORE the catch-all route
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
-    logger.info(f"Mounted static files from {static_dir} at root")
+    # Add individual routes for favicon and icon files (avoids capturing all routes)
+    from fastapi.responses import FileResponse
+    
+    @app.get("/car-icon.svg")
+    async def car_icon():
+        return FileResponse(str(static_dir / "car-icon.svg"))
+    
+    @app.get("/favicon-32x32.png")
+    async def favicon_32():
+        return FileResponse(str(static_dir / "favicon-32x32.png"))
+    
+    @app.get("/favicon-16x16.png")
+    async def favicon_16():
+        return FileResponse(str(static_dir / "favicon-16x16.png"))
+    
+    @app.get("/apple-touch-icon.png")
+    async def apple_touch_icon():
+        return FileResponse(str(static_dir / "apple-touch-icon.png"))
+    
+    logger.info(f"Added favicon and icon routes for static files")
 else:
     logger.warning(f"Static directory {static_dir} not found")
 
@@ -75,7 +91,31 @@ async def health_check():
     return {"status": "healthy", "service": "car-finder"}
 
 
-# Static files with html=True will automatically handle SPA routing
+# Catch-all route for React SPA (must be last)
+@app.get("/{path:path}")
+async def serve_spa(request: Request, path: str = ""):
+    """
+    Serve React SPA for all non-API routes
+    This handles client-side routing
+    """
+    # Don't serve SPA for API routes, docs, or favicon files
+    if (path.startswith("api/") or path.startswith("docs") or path.startswith("redoc") or 
+        path.startswith("assets/") or path.endswith(".svg") or path.endswith(".png") or 
+        path.endswith(".ico") or path == "health"):
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Serve index.html for SPA routes
+    index_file = Path("/app/static/index.html")
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    else:
+        # Fallback response if no frontend built
+        return {
+            "message": "Car Finder API", 
+            "version": "1.0.0",
+            "status": "running",
+            "frontend": "not built"
+        }
 
 
 if __name__ == "__main__":
