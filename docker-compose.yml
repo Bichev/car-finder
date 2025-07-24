@@ -38,7 +38,6 @@ services:
       - ENVIRONMENT=production
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,${EC2_PUBLIC_IP:-},${DOMAIN_NAME:-}
     ports:
       - "8001:8000"  # Custom external port to avoid conflicts
     volumes:
