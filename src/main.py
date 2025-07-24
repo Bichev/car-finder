@@ -61,9 +61,10 @@ if static_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
         logger.info(f"Mounted assets from {assets_dir} at /assets")
     
-    # Also mount the static directory for any other static files
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-    logger.info(f"Mounted static files from {static_dir} at /static")
+    # Mount the entire static directory at root for favicons, icons, etc.
+    # This must come AFTER /assets mounting and BEFORE the catch-all route
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+    logger.info(f"Mounted static files from {static_dir} at root")
 else:
     logger.warning(f"Static directory {static_dir} not found")
 
@@ -74,29 +75,7 @@ async def health_check():
     return {"status": "healthy", "service": "car-finder"}
 
 
-# Catch-all route for React SPA (must be last)
-@app.get("/{path:path}")
-async def serve_spa(request: Request, path: str = ""):
-    """
-    Serve React SPA for all non-API routes
-    This handles client-side routing
-    """
-    # Don't serve SPA for API routes
-    if path.startswith("api/") or path.startswith("docs") or path.startswith("redoc"):
-        raise HTTPException(status_code=404, detail="Not found")
-    
-    # Serve index.html for SPA routes
-    index_file = Path("/app/static/index.html")
-    if index_file.exists():
-        return FileResponse(str(index_file))
-    else:
-        # Fallback response if no frontend built
-        return {
-            "message": "Car Finder API", 
-            "version": "1.0.0",
-            "status": "running",
-            "frontend": "not built"
-        }
+# Static files with html=True will automatically handle SPA routing
 
 
 if __name__ == "__main__":
