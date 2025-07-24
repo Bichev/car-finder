@@ -66,19 +66,31 @@ if static_dir.exists():
     
     @app.get("/car-icon.svg")
     async def car_icon():
-        return FileResponse(str(static_dir / "car-icon.svg"))
+        file_path = static_dir / "car-icon.svg"
+        if file_path.exists():
+            return FileResponse(str(file_path))
+        raise HTTPException(status_code=404, detail="Icon not found")
     
     @app.get("/favicon-32x32.png")
     async def favicon_32():
-        return FileResponse(str(static_dir / "favicon-32x32.png"))
+        file_path = static_dir / "favicon-32x32.png"
+        if file_path.exists():
+            return FileResponse(str(file_path))
+        raise HTTPException(status_code=404, detail="Favicon not found")
     
     @app.get("/favicon-16x16.png")
     async def favicon_16():
-        return FileResponse(str(static_dir / "favicon-16x16.png"))
+        file_path = static_dir / "favicon-16x16.png"
+        if file_path.exists():
+            return FileResponse(str(file_path))
+        raise HTTPException(status_code=404, detail="Favicon not found")
     
     @app.get("/apple-touch-icon.png")
     async def apple_touch_icon():
-        return FileResponse(str(static_dir / "apple-touch-icon.png"))
+        file_path = static_dir / "apple-touch-icon.png"
+        if file_path.exists():
+            return FileResponse(str(file_path))
+        raise HTTPException(status_code=404, detail="Apple touch icon not found")
     
     logger.info(f"Added favicon and icon routes for static files")
 else:
