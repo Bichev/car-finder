@@ -86,3 +86,6 @@ coverage.xml
 # Celery
 celerybeat-schedule
 celerybeat.pid
+
+#statc source
+static_source/

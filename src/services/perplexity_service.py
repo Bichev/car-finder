@@ -48,7 +48,7 @@ class PerplexityService:
         self.client = httpx.AsyncClient(timeout=30.0)  # Reduced from 120s for better UX
         
         # Model configuration
-        self.model = "sonar-pro"  # Advanced search model with enhanced citations
+        self.model = "sonar"  # Advanced search model with enhanced citations
         self.max_tokens = 4000
         
         # Cache for recent queries to avoid duplicate API calls

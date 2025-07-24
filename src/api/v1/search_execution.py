@@ -78,9 +78,9 @@ class PerplexityTest(BaseModel):
         example="What are the current market trends for 2016-2021 Honda Accord?"
     )
     model: str = Field(
-        default="sonar-pro",
+        default="sonar",
         description="Perplexity model to use",
-        example="sonar-pro"
+        example="sonar"
     )
     max_tokens: int = Field(
         default=500,
@@ -659,7 +659,7 @@ async def test_perplexity():
         return {
             "query": query,
             "ai_response": response.get("content", "No response"),
-            "model_used": "sonar-pro",
+            "model_used": "sonar",
             "success": True,
             "timestamp": datetime.utcnow().isoformat()
         }
@@ -669,7 +669,7 @@ async def test_perplexity():
         return {
             "query": query if 'query' in locals() else "Unknown",
             "ai_response": f"Error: {str(e)}",
-            "model_used": "sonar-pro",
+            "model_used": "sonar",
             "success": False,
             "timestamp": datetime.utcnow().isoformat()
         }
