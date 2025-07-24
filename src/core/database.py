@@ -117,13 +117,24 @@ db = Database()
 async def connect_to_mongo():
     """Connect to MongoDB"""
     await db.connect_to_mongo()
-    await db.connect_to_redis()
+    
+    # Try to connect to Redis, but don't fail if it's not available (optional for demo)
+    try:
+        await db.connect_to_redis()
+        logger.info("Redis connection successful")
+    except Exception as e:
+        logger.warning(f"Redis connection failed (continuing without Redis): {e}")
 
 
 async def close_mongo_connection():
     """Close MongoDB connection"""
     await db.close_mongo_connection()
-    await db.close_redis_connection()
+    
+    # Close Redis connection if it exists
+    try:
+        await db.close_redis_connection()
+    except Exception as e:
+        logger.debug(f"Redis disconnection error (ignored): {e}")
 
 
 def get_database() -> AsyncIOMotorDatabase:
