@@ -181,37 +181,112 @@ Car Finder is a **production-ready, full-stack application** that combines **web
 
 ```mermaid
 graph TB
-    subgraph "Frontend Layer"
+    subgraph "🎨 Frontend Layer"
         A[React SPA] --> B[Vite Build System]
         B --> C[Tailwind CSS]
+        A --> D[Real-time Progress UI]
     end
     
-    subgraph "Backend Layer"
-        D[FastAPI Server] --> E[Async API Endpoints]
-        E --> F[Service Layer]
+    subgraph "🚀 Backend Layer"  
+        E[FastAPI Server] --> F[Async API Endpoints]
+        F --> G[Service Orchestrator]
+        G --> H[Search Engine Core]
     end
     
-    subgraph "Automation Layer"
-        F --> G[Playwright Service]
-        F --> H[Perplexity AI Service]
-        G --> I[Cars.com Scraper]
-        G --> J[Edmunds Scraper]
+    subgraph "🤖 Automation Layer"
+        H --> I[Firecrawl Service]
+        H --> J[Playwright Service] 
+        H --> K[Perplexity AI Service]
+        
+        I --> I1[JS-Heavy Sites Handler]
+        I --> I2[Anti-Bot Bypass]
+        I --> I3[Content Extraction]
+        
+        J --> J1[Browser Automation]
+        J --> J2[Form Interactions]
+        J --> J3[Dynamic Content]
+        
+        K --> K1[Market Analysis]
+        K --> K2[Price Valuation]
+        K --> K3[Trend Prediction]
     end
     
-    subgraph "Data Layer"
-        F --> K[MongoDB]
-        F --> L[Redis Cache]
+    subgraph "🌐 External Data Sources"
+        L[Marketplace APIs]
+        M[Auction Sites]
+        N[E-commerce Platforms]
+        O[Government Portals]
+        P[Specialty Marketplaces]
+        
+        subgraph "Car Example"
+            N1[Cars.com]
+            N2[Edmunds]
+            N3[AutoTrader]
+        end
+        
+        subgraph "Other Industries"
+            O1[eBay/StockX]
+            O2[Chrono24]
+            O3[GovDeals]
+            O4[Medical Equipment]
+        end
     end
     
-    subgraph "Infrastructure"
-        M[Docker Compose] --> N[Isolated Network]
-        N --> O[Volume Persistence]
+    subgraph "💾 Data Layer"
+        Q[MongoDB Atlas]
+        R[Redis Cache]
+        S[Search Indexes]
+        T[Analytics Store]
     end
     
-    A --> D
-    H --> P[AI Market Analysis]
-    I --> K
-    J --> K
+    subgraph "☁️ Infrastructure"
+        U[Docker Compose]
+        V[Isolated Networks]
+        W[Volume Persistence]
+        X[Health Monitoring]
+        Y[Auto-Scaling]
+    end
+    
+    %% Frontend to Backend
+    A --> E
+    
+    %% Automation to External Sources
+    I1 --> L
+    I2 --> M
+    I3 --> N
+    J1 --> N1
+    J2 --> N2
+    J3 --> O1
+    
+    %% AI Analysis Flow
+    I --> K1
+    J --> K2
+    K3 --> G
+    
+    %% Data Flow
+    I3 --> Q
+    J3 --> Q
+    K1 --> T
+    G --> R
+    Q --> S
+    
+    %% Infrastructure Connections
+    E --> U
+    Q --> V
+    R --> W
+    G --> X
+    
+    %% Real-time Updates
+    G --> D
+    K --> D
+    
+    style A fill:#61DAFB
+    style E fill:#009688
+    style I fill:#FF6B6B
+    style J fill:#4ECDC4
+    style K fill:#45B7D1
+    style Q fill:#4CAF50
+    style U fill:#2196F3
 ```
 
 ### 🛠️ **Technology Stack:**
