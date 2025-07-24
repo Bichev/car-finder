@@ -310,8 +310,49 @@ class PlaywrightScrapingService:
             if criteria.makes and criteria.models:
                 make = criteria.makes[0]
                 model = criteria.models[0]
-                search_query = f"{make} {model}"
-                logger.info(f"🎭 Searching for: {search_query} in {location_zip}")
+                
+                # Build comprehensive search query with all criteria
+                # Start with specific model search to avoid mixed models
+                search_parts = [f"{make} {model}"]
+                
+                # Add year range if specified
+                if criteria.year_min and criteria.year_max:
+                    search_parts.append(f"{criteria.year_min}-{criteria.year_max}")
+                elif criteria.year_min:
+                    search_parts.append(f"{criteria.year_min}+")
+                elif criteria.year_max:
+                    search_parts.append(f"up to {criteria.year_max}")
+                
+                # Add price range if specified
+                if criteria.price_min and criteria.price_max:
+                    price_min_formatted = f"${criteria.price_min:,.0f}"
+                    price_max_formatted = f"${criteria.price_max:,.0f}"
+                    search_parts.append(f"{price_min_formatted}-{price_max_formatted}")
+                elif criteria.price_min:
+                    price_min_formatted = f"${criteria.price_min:,.0f}"
+                    search_parts.append(f"${price_min_formatted}+")
+                elif criteria.price_max:
+                    price_max_formatted = f"${criteria.price_max:,.0f}"
+                    search_parts.append(f"under {price_max_formatted}")
+                
+                # Add location
+                search_parts.append(location_zip)
+                
+                # Join all parts into concise search query
+                search_query = " ".join(search_parts)
+                logger.info(f"🎭 Concise search query: {search_query}")
+                
+                # Also create a backup detailed query for fallback
+                detailed_parts = [f"Looking for {make} {model} vehicles"]
+                if criteria.year_min and criteria.year_max:
+                    detailed_parts.append(f"from {criteria.year_min}-{criteria.year_max}")
+                if criteria.price_min and criteria.price_max:
+                    price_min_formatted = f"${criteria.price_min:,.0f}"
+                    price_max_formatted = f"${criteria.price_max:,.0f}"
+                    detailed_parts.append(f"in the {price_min_formatted}-{price_max_formatted} price range")
+                detailed_parts.append(f"near {location_zip}")
+                detailed_search_query = " ".join(detailed_parts)
+                logger.info(f"🎭 Detailed fallback query: {detailed_search_query}")
                 
                 # Try using separate Make/Model dropdowns first (modern Cars.com)
                 make_filled = False
@@ -378,7 +419,7 @@ class PlaywrightScrapingService:
                         continue
                 
                 # If separate fields didn't work, try single search field
-                filled = make_filled or model_filled
+                filled = make_filled and model_filled  # Both need to be filled for optimal results
                 if not filled:
                     logger.info("🎭 Trying single search field approach...")
                     search_selectors = [
@@ -392,19 +433,43 @@ class PlaywrightScrapingService:
                         '#search-input'
                     ]
                     
+                    # Try concise query first for better model matching
+                    query_to_use = search_query
+                    logger.info(f"🎭 Using concise query: {query_to_use}")
+                    
+                    search_filled = False
                     for selector in search_selectors:
                         try:
                             search_input = page.locator(selector)
                             if await search_input.count() > 0 and await search_input.is_visible():
-                                logger.info(f"🎭 Filling search input with: {search_query}")
+                                logger.info(f"🎭 Filling search input with: {query_to_use}")
                                 await search_input.clear()
-                                await search_input.fill(search_query)
-                                filled = True
+                                await search_input.fill(query_to_use)
+                                search_filled = True
                                 logger.info(f"🎭 Successfully filled search input: {selector}")
                                 break
                         except Exception as e:
                             logger.debug(f"🎭 Failed to fill {selector}: {str(e)}")
                             continue
+                    
+                    # If concise query didn't work, try detailed query as fallback
+                    if not search_filled:
+                        logger.info("🎭 Trying detailed query as fallback...")
+                        for selector in search_selectors:
+                            try:
+                                search_input = page.locator(selector)
+                                if await search_input.count() > 0 and await search_input.is_visible():
+                                    logger.info(f"🎭 Filling search input with detailed query: {detailed_search_query}")
+                                    await search_input.clear()
+                                    await search_input.fill(detailed_search_query)
+                                    search_filled = True
+                                    logger.info(f"🎭 Successfully filled search input with detailed query: {selector}")
+                                    break
+                            except Exception as e:
+                                logger.debug(f"🎭 Failed to fill {selector} with detailed query: {str(e)}")
+                                continue
+                    
+                    filled = search_filled
                 
                 if not filled:
                     logger.warning("🎭 Could not find search input, trying alternative methods...")
@@ -441,6 +506,108 @@ class PlaywrightScrapingService:
                 
                 if not location_filled:
                     logger.warning("🎭 Could not set location")
+                
+                # Set price range filters
+                if criteria.price_min:
+                    logger.info(f"🎭 Setting minimum price: ${criteria.price_min}")
+                    price_min_selectors = [
+                        'input[name="price_min"]',
+                        'input[name="priceMin"]',
+                        'input[placeholder*="Min price"]',
+                        'input[placeholder*="Minimum"]',
+                        'select[name="price_min"]'
+                    ]
+                    
+                    for selector in price_min_selectors:
+                        try:
+                            price_min_input = page.locator(selector)
+                            if await price_min_input.count() > 0 and await price_min_input.is_visible():
+                                if 'select' in selector:
+                                    await price_min_input.select_option(value=str(int(criteria.price_min)))
+                                else:
+                                    await price_min_input.clear()
+                                    await price_min_input.fill(str(int(criteria.price_min)))
+                                logger.info(f"🎭 Set minimum price: {selector}")
+                                break
+                        except Exception as e:
+                            logger.debug(f"🎭 Failed to set min price {selector}: {str(e)}")
+                            continue
+                
+                if criteria.price_max:
+                    logger.info(f"🎭 Setting maximum price: ${criteria.price_max}")
+                    price_max_selectors = [
+                        'input[name="price_max"]',
+                        'input[name="priceMax"]',
+                        'input[placeholder*="Max price"]',
+                        'input[placeholder*="Maximum"]',
+                        'select[name="price_max"]'
+                    ]
+                    
+                    for selector in price_max_selectors:
+                        try:
+                            price_max_input = page.locator(selector)
+                            if await price_max_input.count() > 0 and await price_max_input.is_visible():
+                                if 'select' in selector:
+                                    await price_max_input.select_option(value=str(int(criteria.price_max)))
+                                else:
+                                    await price_max_input.clear()
+                                    await price_max_input.fill(str(int(criteria.price_max)))
+                                logger.info(f"🎭 Set maximum price: {selector}")
+                                break
+                        except Exception as e:
+                            logger.debug(f"🎭 Failed to set max price {selector}: {str(e)}")
+                            continue
+                
+                # Set year range filters
+                if criteria.year_min:
+                    logger.info(f"🎭 Setting minimum year: {criteria.year_min}")
+                    year_min_selectors = [
+                        'select[name="year_min"]',
+                        'select[name="yearMin"]',
+                        'input[name="year_min"]',
+                        'select[placeholder*="Min year"]',
+                        'select[placeholder*="From year"]'
+                    ]
+                    
+                    for selector in year_min_selectors:
+                        try:
+                            year_min_input = page.locator(selector)
+                            if await year_min_input.count() > 0 and await year_min_input.is_visible():
+                                if 'select' in selector:
+                                    await year_min_input.select_option(value=str(criteria.year_min))
+                                else:
+                                    await year_min_input.clear()
+                                    await year_min_input.fill(str(criteria.year_min))
+                                logger.info(f"🎭 Set minimum year: {selector}")
+                                break
+                        except Exception as e:
+                            logger.debug(f"🎭 Failed to set min year {selector}: {str(e)}")
+                            continue
+                
+                if criteria.year_max:
+                    logger.info(f"🎭 Setting maximum year: {criteria.year_max}")
+                    year_max_selectors = [
+                        'select[name="year_max"]',
+                        'select[name="yearMax"]',
+                        'input[name="year_max"]',
+                        'select[placeholder*="Max year"]',
+                        'select[placeholder*="To year"]'
+                    ]
+                    
+                    for selector in year_max_selectors:
+                        try:
+                            year_max_input = page.locator(selector)
+                            if await year_max_input.count() > 0 and await year_max_input.is_visible():
+                                if 'select' in selector:
+                                    await year_max_input.select_option(value=str(criteria.year_max))
+                                else:
+                                    await year_max_input.clear()
+                                    await year_max_input.fill(str(criteria.year_max))
+                                logger.info(f"🎭 Set maximum year: {selector}")
+                                break
+                        except Exception as e:
+                            logger.debug(f"🎭 Failed to set max year {selector}: {str(e)}")
+                            continue
                 
                 # Set sorting to lowest price BEFORE submitting search
                 logger.info("🎭 Setting sort to lowest price...")
@@ -611,21 +778,31 @@ class PlaywrightScrapingService:
             # Extract vehicle data with multiple approaches
             vehicles = []
             
-            # Try different selectors for vehicle listings (Updated based on actual Cars.com HTML)
+            # Modern Cars.com uses different selectors - update based on dynamic loading
             vehicle_selectors = [
-                '.vehicle-card',  # Primary Cars.com selector - confirmed from HTML
-                'div[data-listing-id]',  # Cars.com uses data-listing-id attributes
-                '[data-tracking-type="srp-vehicle-card"]',  # Cars.com tracking attribute
-                '.vehicle-cards .vehicle-card',  # More specific path
-                '[id^="vehicle-card-"]',  # Cars.com IDs like "vehicle-card-c7ac68c6..."
-                '[data-testid="listing-AVAILABLE"]',  # Fallback
+                # Modern Cars.com selectors (updated for 2024)
+                'article[data-tracking-id*="srp_listing"]',  # Current Cars.com article structure
+                'article[data-qa="vehicle_card"]',           # Alternative Cars.com structure
+                'div[data-testid*="listing"]',               # Modern testid pattern
+                'article[class*="vehicle"]',                 # Article with vehicle in class
+                '[data-cmp="VehicleCard"]',                  # Component-based selector
+                '.sds-card',                                 # Cars.com design system card
+                'article.sds-card',                          # Article with SDS card class
+                
+                # Legacy selectors (fallback)
+                '.vehicle-card',                             # Classic selector
+                'div[data-listing-id]',                      # Legacy data attribute
+                '[data-tracking-type="srp-vehicle-card"]',   # Old tracking
+                '.vehicle-cards .vehicle-card',              # Nested structure
+                '[id^="vehicle-card-"]',                     # ID-based selector
+                
+                # Generic fallback selectors
                 '.listing',
-                '.vehicle-listing',
+                '.vehicle-listing', 
                 '.car-listing',
                 '.search-result',
-                '[data-qa="vehicle-card"]',
-                '.vehicle-details',
-                '.listing-card'
+                'article',                                   # Any article element
+                '[class*="card"]'                            # Any element with card in class
             ]
             
             vehicle_cards = []
@@ -925,19 +1102,41 @@ class PlaywrightScrapingService:
             
             # Get all text content for debugging
             card_text = await card.text_content()
-            logger.debug(f"🎭 Card text content: {card_text[:200]}...")
+            logger.debug(f"🎭 Card text content: {card_text[:300]}...")
             
-            # Extract price with multiple selectors (Updated for Cars.com structure)
+            # Enhanced debugging - log the actual HTML structure
+            try:
+                card_html = await card.inner_html()
+                logger.debug(f"🎭 Card HTML structure (first 400 chars): {card_html[:400]}...")
+                
+                # Log available classes for debugging
+                class_attr = await card.get_attribute('class')
+                if class_attr:
+                    logger.debug(f"🎭 Card classes: {class_attr}")
+            except Exception as debug_error:
+                logger.debug(f"🎭 Debug error: {str(debug_error)}")
+            
+            # Extract price with multiple selectors (Updated for modern Cars.com)
             price_selectors = [
-                '.price-section .primary-price',  # Cars.com specific price structure
-                '.price-section-vehicle-card .primary-price',  # More specific Cars.com path
-                '.price-section',  # Cars.com price container
-                '.vehicle-card .price',  # Generic price in card
-                '[data-testid="listing-price"]',  # Fallback
-                '.price',
-                '.listing-price',
-                '.vehicle-price',
-                ':has-text("$")'
+                # Modern Cars.com 2024+ selectors
+                '.sds-card__price',                      # Cars.com design system price
+                '.sds-card__pricing .sds-card__price',   # Nested price structure
+                '[data-cmp="VehicleCard"] .sds-card__price', # Component-based price
+                '[class*="price"] span',                  # Price span elements
+                
+                # Legacy Cars.com selectors
+                '.price-section .primary-price',         # Classic Cars.com price
+                '.price-section-vehicle-card .primary-price', # Specific Cars.com path
+                '.price-section',                        # Cars.com price container
+                '.vehicle-card .price',                  # Generic price in card
+                
+                # Generic fallback selectors
+                '[data-testid="listing-price"]',         # Test ID
+                '.price',                                # Basic price class
+                '.listing-price',                        # Listing price
+                '.vehicle-price',                        # Vehicle price
+                '[class*="price"]',                      # Any class with "price"
+                ':has-text("$")'                         # Any element with $
             ]
             
             price_found = False
@@ -968,17 +1167,30 @@ class PlaywrightScrapingService:
                     price_found = True
                     logger.debug(f"🎭 Found price from text content: ${vehicle_data['price']}")
             
-            # Extract year, make, model with multiple selectors (Updated for Cars.com)
+            # Extract year, make, model with multiple selectors (Updated for modern Cars.com)
             title_selectors = [
-                '.vehicle-card-link',  # Cars.com main vehicle link contains title
-                '.vehicle-card h3',  # Cars.com title structure
-                '.vehicle-card h2',  # Alternative Cars.com title
-                '.vehicle-details .vehicle-info',  # Cars.com vehicle info section
-                '[data-testid="listing-title"]',  # Fallback
-                '.listing-title',
-                '.vehicle-title',
-                '.car-title',
-                'h2', 'h3', 'h4'
+                # Modern Cars.com 2024+ selectors
+                '.sds-card__title',                      # Cars.com design system title
+                '.sds-card__header .sds-card__title',    # Nested title structure
+                'h3.sds-card__title',                    # H3 with SDS title class
+                '[data-cmp="VehicleCard"] .sds-card__title', # Component title
+                'article h3',                            # Article heading
+                'article h2',                            # Article secondary heading
+                
+                # Legacy Cars.com selectors
+                '.vehicle-card-link',                    # Classic Cars.com vehicle link
+                '.vehicle-card h3',                      # Cars.com title structure
+                '.vehicle-card h2',                      # Alternative Cars.com title
+                '.vehicle-details .vehicle-info',        # Cars.com vehicle info section
+                
+                # Generic fallback selectors
+                '[data-testid="listing-title"]',         # Test ID
+                '.listing-title',                        # Listing title
+                '.vehicle-title',                        # Vehicle title
+                '.car-title',                            # Car title
+                'h2', 'h3', 'h4',                       # Any heading
+                'a[href*="vehicle"]',                    # Links to vehicle pages
+                'a[href*="listing"]'                     # Links to listing pages
             ]
             
             title_found = False
@@ -1011,26 +1223,65 @@ class PlaywrightScrapingService:
                 if year_match:
                     vehicle_data["year"] = int(year_match.group(1))
                 
-                # Look for Honda/Accord specifically
-                if 'honda' in card_text.lower():
-                    vehicle_data["make"] = "Honda"
-                if 'accord' in card_text.lower():
-                    vehicle_data["model"] = "Accord"
+                # Define common makes to search for
+                makes = ['Honda', 'Toyota', 'BMW', 'Mercedes', 'Audi', 'Lexus', 'Acura', 'Infiniti', 
+                        'Volkswagen', 'Nissan', 'Hyundai', 'Kia', 'Ford', 'Chevrolet', 'Cadillac', 
+                        'Buick', 'Mazda', 'Subaru', 'Jeep', 'Ram', 'Dodge', 'Chrysler']
                 
-                if "make" in vehicle_data and "model" in vehicle_data:
+                # Look for make in text content (case insensitive)
+                for make in makes:
+                    if make.lower() in card_text.lower():
+                        vehicle_data["make"] = make
+                        logger.debug(f"🎭 Found make from text: {make}")
+                        break
+                
+                # Look for model patterns (after the make if found)
+                if "make" in vehicle_data:
+                    make = vehicle_data["make"]
+                    # Look for text after the make
+                    make_pattern = rf'{make}\s+([A-Za-z0-9\-]+)'
+                    model_match = re.search(make_pattern, card_text, re.IGNORECASE)
+                    if model_match:
+                        potential_model = model_match.group(1)
+                        # Filter out years and common non-model words
+                        if not re.match(r'^\d{4}$', potential_model) and potential_model.lower() not in ['for', 'sale', 'used', 'new']:
+                            vehicle_data["model"] = potential_model
+                            logger.debug(f"🎭 Found model from text: {potential_model}")
+                
+                # Look for specific model names if no pattern match
+                if "model" not in vehicle_data:
+                    models = ['Accord', 'Civic', 'Camry', 'Corolla', 'X3', 'X5', 'X1', 'A4', 'A6', 'ES', 'IS', 'RX']
+                    for model in models:
+                        if model.lower() in card_text.lower():
+                            vehicle_data["model"] = model
+                            logger.debug(f"🎭 Found model from text: {model}")
+                            break
+                
+                if "make" in vehicle_data or "model" in vehicle_data:
                     title_found = True
-                    logger.debug(f"🎭 Found make/model from text content")
+                    logger.debug(f"🎭 Successfully extracted make/model from text content")
             
-            # Extract mileage with multiple selectors (Updated for Cars.com)
+            # Extract mileage with multiple selectors (Updated for modern Cars.com)
             mileage_selectors = [
-                '.vehicle-card .mileage',  # Cars.com mileage class
-                '.vehicle-details .mileage',  # Cars.com vehicle details
-                '.vehicle-card-main .mileage',  # Cars.com card main section
-                '[data-testid="listing-mileage"]',  # Fallback
-                '.mileage',
-                '.listing-mileage',
-                ':has-text("miles")',
-                ':has-text("mi")'
+                # Modern Cars.com 2024+ selectors
+                '.sds-card__mileage',                    # Cars.com design system mileage
+                '.sds-card__extra',                      # Cars.com extra info (may contain mileage)
+                '[data-cmp="VehicleCard"] .sds-card__mileage', # Component mileage
+                'span:has-text("mi")',                   # Span containing "mi"
+                'span:has-text("miles")',                # Span containing "miles"
+                
+                # Legacy Cars.com selectors
+                '.vehicle-card .mileage',                # Cars.com mileage class
+                '.vehicle-details .mileage',             # Cars.com vehicle details
+                '.vehicle-card-main .mileage',           # Cars.com card main section
+                
+                # Generic fallback selectors
+                '[data-testid="listing-mileage"]',       # Test ID
+                '.mileage',                              # Basic mileage class
+                '.listing-mileage',                      # Listing mileage
+                ':has-text("miles")',                    # Text containing "miles"
+                ':has-text("mi")',                       # Text containing "mi"
+                '[class*="mileage"]'                     # Any class with "mileage"
             ]
             
             for selector in mileage_selectors:
@@ -1050,12 +1301,25 @@ class PlaywrightScrapingService:
                     logger.debug(f"🎭 Failed to extract mileage with {selector}: {str(e)}")
                     continue
             
-            # Extract location with multiple selectors
+            # Extract location with multiple selectors (Updated for modern Cars.com)
             location_selectors = [
-                '[data-testid="listing-dealer-city-state"]',
-                '.location',
-                '.dealer-location',
-                '.listing-location'
+                # Modern Cars.com 2024+ selectors
+                '.sds-card__extra span',                 # Cars.com extra info span
+                '[data-cmp="VehicleCard"] .location',    # Component location
+                'span:has-text(",")span:has-text("CA")', # State abbreviations
+                'span:has-text(",")span:has-text("FL")', # State abbreviations
+                'span:has-text(",")span:has-text("TX")', # State abbreviations
+                
+                # Legacy Cars.com selectors
+                '[data-testid="listing-dealer-city-state"]', # Test ID
+                '.location',                             # Basic location class
+                '.dealer-location',                      # Dealer location
+                '.listing-location',                     # Listing location
+                
+                # Generic fallback selectors
+                '[class*="location"]',                   # Any class with "location"
+                ':has-text("," )',                       # Text with comma (city, state)
+                'span[title*="location"]'                # Span with location in title
             ]
             
             for selector in location_selectors:
@@ -1071,15 +1335,27 @@ class PlaywrightScrapingService:
                     logger.debug(f"🎭 Failed to extract location with {selector}: {str(e)}")
                     continue
             
-            # Extract URL (Updated for Cars.com structure)
+            # Extract URL (Updated for modern Cars.com structure)
             link_selectors = [
-                'a.vehicle-card-link',  # Cars.com main vehicle link class
-                'a[href*="/vehicledetail/"]',  # Cars.com vehicle detail URLs
-                '.vehicle-card-link',  # Cars.com link class
-                'a[data-linkname="vehicle-listing"]',  # Cars.com tracking attribute
-                'a[href*="/vehicle/"]',  # Generic vehicle URLs
-                'a[href*="/listing/"]',  # Generic listing URLs
-                'a'  # Fallback to any link
+                # Modern Cars.com 2024+ selectors
+                '.sds-card__link',                       # Cars.com design system link
+                'article a[href*="/vehicle"]',           # Article with vehicle link
+                'a[data-tracking-id*="srp_listing"]',    # Tracking-based link
+                'a[data-cmp="VehicleCard"]',             # Component-based link
+                'a.sds-card__link',                      # SDS card link class
+                
+                # Legacy Cars.com selectors
+                'a.vehicle-card-link',                   # Classic Cars.com link
+                'a[href*="/vehicledetail/"]',            # Legacy vehicle detail URLs
+                '.vehicle-card-link',                    # Cars.com link class
+                'a[data-linkname="vehicle-listing"]',    # Cars.com tracking attribute
+                
+                # Generic fallback selectors
+                'a[href*="/vehicle/"]',                  # Generic vehicle URLs
+                'a[href*="/listing/"]',                  # Generic listing URLs
+                'a[href*="/shopping/"]',                 # Shopping URLs
+                'a[href*="cars.com"]',                   # Cars.com URLs
+                'a'                                      # Fallback to any link
             ]
             
             for selector in link_selectors:
