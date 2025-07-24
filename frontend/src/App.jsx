@@ -395,10 +395,22 @@ function App() {
             <p className="text-slate-400 mb-6">
               Revolutionizing vehicle discovery through AI and automation
             </p>
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-6">
               <AlertCircle className="w-4 h-4 mr-2" />
-              Demo Platform - Contact us for production access
+              {/* Demo Platform - Contact vladbichev.com for production access */}
+              Made with ❤️{'  '} 
+                <a 
+                  href="https://www.vladbichev.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-200"
+                >
+                   by Vladimir Bichev vladbichev.com
+                </a>
             </div>
+            
+            {/* Personal Attribution */}
+            
           </div>
         </div>
       </footer>
