@@ -291,7 +291,7 @@ const ResultsDisplay = ({ results }) => {
 
       {/* Vehicle Results */}
       <div>
-        <div className="flex items-center space-x-3 mb-6">
+        {/* <div className="flex items-center space-x-3 mb-6">
           <div className="p-2 bg-blue-100 rounded-lg">
             <Car className="w-6 h-6 text-blue-600" />
           </div>
@@ -299,7 +299,7 @@ const ResultsDisplay = ({ results }) => {
             <h3 className="text-xl font-bold text-white-900">Vehicle Listings</h3>
             <p className="text-white-600">Click any vehicle to view details</p>
           </div>
-        </div>
+        </div> */}
 
         {vehicles.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

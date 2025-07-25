@@ -9,6 +9,9 @@ import ShimmerText from './components/ShimmerText'
 import FloatingParticles from './components/FloatingParticles'
 import MagneticButton from './components/MagneticButton'
 import GradientBlob from './components/GradientBlob'
+import AnimatedCard from './components/AnimatedCard'
+import CountingNumber from './components/CountingNumber'
+import TypewriterText from './components/TypewriterText'
 import toast, { Toaster } from 'react-hot-toast'
 
 function App() {
@@ -162,10 +165,10 @@ function App() {
           
           <TextReveal delay={600}>
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-              <ShimmerText>Turn Market</ShimmerText>
-              <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <ShimmerText>Turn Arbitrage Markets</ShimmerText>
+              {/* <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text">
                 <ShimmerText> Inefficiencies</ShimmerText>
-              </span>
+              </span> */}
               <br />
               <ShimmerText>Into Profit</ShimmerText>
             </h1>
@@ -179,40 +182,54 @@ function App() {
           </TextReveal>
           
           <TextReveal delay={1200}>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-12 mb-16 mt-8">
               {/* Demo Button with Badge */}
-              <div className="relative group">
-                {/* Hot Badge */}
-                <div className="absolute -top-3 -right-2 z-10">
-                  <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg animate-pulse">
+              <div className="relative group pt-8 pb-4">
+                {/* Hot Badge - Much higher positioning */}
+                <div className="absolute top-0 -right-4 z-40 transform rotate-12">
+                  <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-xl animate-pulse hover:animate-bounce border-2 border-white/20">
                     🔥 HOT
                   </div>
                 </div>
                 <MagneticButton 
                   onClick={scrollToDemo}
-                  className="border border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 px-8 py-4 rounded-xl transition-all flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-blue-500/25"
+                  className="relative overflow-hidden border-2 border-slate-600/80 bg-slate-800/40 backdrop-blur-sm text-slate-300 hover:text-white hover:border-blue-400/60 hover:bg-slate-700/60 px-10 py-5 rounded-2xl transition-all duration-300 flex items-center font-semibold text-lg shadow-2xl hover:shadow-blue-500/25 group"
                 >
-                  <Play className="w-5 h-5 mr-2" />
-                  See Live Demo
-                  <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                  {/* Button glow effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <Play className="w-6 h-6 mr-3 animate-float relative z-10" />
+                  <span className="relative z-10">
+                    <ShimmerText>See Live Demo</ShimmerText>
+                  </span>
+                  <ArrowRight className="w-6 h-6 ml-3 transform group-hover:translate-x-2 transition-transform duration-300 relative z-10" />
                 </MagneticButton>
               </div>
 
-              {/* Opportunities Button with Badge */}
-              <div className="relative group">
-                {/* Popular Badge */}
-                <div className="absolute -top-5 -right-3 z-10">
-                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">
+              {/* Opportunities Button with Badges */}
+              <div className="relative group pt-8 pb-4 px-6">
+                {/* Popular Badge - Left top, much higher */}
+                <div className="absolute top-0 -right-2 z-40 transform rotate-12">
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-xl animate-pulse hover:animate-bounce border-2 border-white/20">
                     ⭐ POPULAR
                   </div>
                 </div>
+                {/* Premium Badge - Right top, much higher */}
+                {/* <div className="absolute top-0 -right-2 z-40 transform rotate-12">
+                  <div className="bg-gradient-to-r from-yellow-500 to-yellow-400 text-yellow-900 text-xs px-3 py-1.5 rounded-full font-bold shadow-xl animate-pulse hover:animate-bounce border-2 border-yellow-200/30">
+                    👑 PREMIUM
+                  </div>
+                </div> */}
                 <MagneticButton 
                   onClick={() => document.getElementById('opportunities').scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105 flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-purple-500/30"
+                  className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-10 py-5 rounded-2xl transition-all duration-300 transform hover:scale-105 flex items-center font-semibold text-lg shadow-2xl hover:shadow-purple-500/40 group border border-white/10"
                 >
-                  <Eye className="w-5 h-5 mr-2" />
-                  Explore Opportunities
-                  <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                  {/* Button shimmer effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <Eye className="w-6 h-6 mr-3 animate-float relative z-10" style={{ animationDelay: '0.5s' }} />
+                  <span className="relative z-10">
+                    <ShimmerText>Explore Opportunities</ShimmerText>
+                  </span>
+                  <ArrowRight className="w-6 h-6 ml-3 transform group-hover:translate-x-2 transition-transform duration-300 relative z-10" />
                 </MagneticButton>
               </div>
             </div>
@@ -221,23 +238,35 @@ function App() {
           {/* Success Indicators */}
           <TextReveal delay={1500}>
             <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
-              <div className="flex items-center px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full hover:bg-green-500/20 transition-all duration-300 hover:scale-105 cursor-pointer">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                <span className="text-green-400 text-sm font-medium">
-                  <ShimmerText>Automated Scrapping</ShimmerText>
-                </span>
+              <div className="relative group">
+                <div className="flex items-center px-6 py-3 bg-green-500/15 border border-green-500/30 rounded-full hover:bg-green-500/25 transition-all duration-300 hover:scale-110 cursor-pointer shadow-lg hover:shadow-green-500/20 backdrop-blur-sm">
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-3 animate-pulse" />
+                  <span className="text-green-400 text-sm font-semibold">
+                    <ShimmerText>Automated Scrapping</ShimmerText>
+                  </span>
+                </div>
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 -z-10"></div>
               </div>
-              <div className="flex items-center px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full hover:bg-blue-500/20 transition-all duration-300 hover:scale-105 cursor-pointer">
-                <TrendingUp className="w-4 h-4 text-blue-400 mr-2" />
-                <span className="text-blue-400 text-sm font-medium">
-                  <ShimmerText>Real-Time Perplexity Insights</ShimmerText>
-                </span>
+              <div className="relative group">
+                <div className="flex items-center px-6 py-3 bg-blue-500/15 border border-blue-500/30 rounded-full hover:bg-blue-500/25 transition-all duration-300 hover:scale-110 cursor-pointer shadow-lg hover:shadow-blue-500/20 backdrop-blur-sm">
+                  <TrendingUp className="w-5 h-5 text-blue-400 mr-3 animate-pulse" style={{ animationDelay: '0.2s' }} />
+                  <span className="text-blue-400 text-sm font-semibold">
+                    <ShimmerText>Real-Time Perplexity Insights</ShimmerText>
+                  </span>
+                </div>
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 -z-10"></div>
               </div>
-              <div className="flex items-center px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full hover:bg-purple-500/20 transition-all duration-300 hover:scale-105 cursor-pointer">
-                <Zap className="w-4 h-4 text-purple-400 mr-2" />
-                <span className="text-purple-400 text-sm font-medium">
-                  <ShimmerText>AI Market Analytics</ShimmerText>
-                </span>
+              <div className="relative group">
+                <div className="flex items-center px-6 py-3 bg-purple-500/15 border border-purple-500/30 rounded-full hover:bg-purple-500/25 transition-all duration-300 hover:scale-110 cursor-pointer shadow-lg hover:shadow-purple-500/20 backdrop-blur-sm">
+                  <Zap className="w-5 h-5 text-purple-400 mr-3 animate-pulse" style={{ animationDelay: '0.4s' }} />
+                  <span className="text-purple-400 text-sm font-semibold">
+                    <ShimmerText>AI Market Analytics</ShimmerText>
+                  </span>
+                </div>
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 -z-10"></div>
               </div>
             </div>
           </TextReveal>
@@ -262,31 +291,41 @@ function App() {
             </div>
           </div> */}
         </div>
+        <TextReveal delay={200}>
+            <div className="text-center mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                <ShimmerText>Unlock Profit in Every Market</ShimmerText>
+              </h2>
+              <TypewriterText 
+                text="Our AI-powered platform identifies arbitrage opportunities across multiple high-value markets, giving you the edge to profit from price inefficiencies that others miss."
+                speed={30}
+                delay={1000}
+                className="text-xl text-slate-300 max-w-3xl mx-auto block"
+              />
+            </div>
+          </TextReveal>
       </section>
 
       {/* Arbitrage Opportunities Section */}
-      <section id="opportunities" className="py-20 px-4 sm:px-6 lg:px-8">
+      <section id="opportunities" className="py-20 px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Unlock Profit in Every Market
-            </h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              Our AI-powered platform identifies arbitrage opportunities across multiple high-value markets, 
-              giving you the edge to profit from price inefficiencies that others miss.
-            </p>
-          </div>
+
 
           {/* Collectibles & Alternative Assets */}
-          <div className="mb-20">
-            <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-3xl p-8 border border-blue-500/20">
+          <TextReveal delay={600}>
+            <AnimatedCard className="mb-20" delay={200}>
+              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-3xl p-8 border border-blue-500/20">
               <div className="flex items-center mb-6">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl mr-4">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl mr-4 animate-float">
                   <Crown className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-3xl font-bold text-white">Collectibles & Alternative Assets</h3>
-                  <p className="text-blue-300">Luxury watches, trading cards, sneakers, NFTs, and premium collectibles</p>
+                  <h3 className="text-3xl font-bold text-white">
+                    <ShimmerText>Collectibles & Alternative Assets</ShimmerText>
+                  </h3>
+                  <p className="text-blue-300">
+                    <ShimmerText>Luxury watches, trading cards, sneakers, NFTs, and premium collectibles</ShimmerText>
+                  </p>
                 </div>
               </div>
               
@@ -305,13 +344,17 @@ function App() {
                     <span className="font-semibold">Instant authenticity verification</span>
                   </div>
                 </div>
-                <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                  <h4 className="text-lg font-semibold text-white mb-4">Success Example</h4>
+                <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-300 hover:scale-105 group">
+                  <h4 className="text-lg font-semibold text-white mb-4">
+                    <ShimmerText>Success Example</ShimmerText>
+                  </h4>
                   <p className="text-slate-300 mb-4">
                     "Found a Rolex Submariner listed for $8,500 on a European auction site. 
                     Same model selling for $12,000+ in US markets. Net profit: $2,800 after fees."
                   </p>
-                  <div className="text-green-400 font-bold text-xl">+33% ROI</div>
+                  <div className="text-green-400 font-bold text-xl group-hover:animate-pulse">
+                    +<CountingNumber end={33} duration={1500} suffix="%" />ROI
+                  </div>
                 </div>
               </div>
 
@@ -337,19 +380,25 @@ function App() {
                   <div className="text-slate-400 text-sm">NFTs, Domains, Crypto</div>
                 </div>
               </div>
-            </div>
-          </div>
+              </div>
+            </AnimatedCard>
+          </TextReveal>
 
           {/* B2B Equipment & Machinery */}
-          <div className="mb-20">
-            <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-3xl p-8 border border-orange-500/20">
+          <TextReveal delay={800}>
+            <AnimatedCard className="mb-20" delay={400}>
+              <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-3xl p-8 border border-orange-500/20">
               <div className="flex items-center mb-6">
-                <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl mr-4">
+                <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl mr-4 animate-float" style={{ animationDelay: '1s' }}>
                   <Wrench className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-3xl font-bold text-white">B2B Equipment & Machinery</h3>
-                  <p className="text-orange-300">Medical equipment, construction tools, restaurant gear, IT hardware</p>
+                  <h3 className="text-3xl font-bold text-white">
+                    <ShimmerText>B2B Equipment & Machinery</ShimmerText>
+                  </h3>
+                  <p className="text-orange-300">
+                    <ShimmerText>Medical equipment, construction tools, restaurant gear, IT hardware</ShimmerText>
+                  </p>
                 </div>
               </div>
               
@@ -368,13 +417,17 @@ function App() {
                     <span className="font-semibold">Verified seller credentials</span>
                   </div>
                 </div>
-                <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                  <h4 className="text-lg font-semibold text-white mb-4">Success Example</h4>
+                <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-300 hover:scale-105 group">
+                  <h4 className="text-lg font-semibold text-white mb-4">
+                    <ShimmerText>Success Example</ShimmerText>
+                  </h4>
                   <p className="text-slate-300 mb-4">
                     "Acquired commercial kitchen equipment from restaurant closure for $15K. 
                     Resold individual pieces to multiple buyers for $38K total."
                   </p>
-                  <div className="text-green-400 font-bold text-xl">+153% ROI</div>
+                  <div className="text-green-400 font-bold text-xl group-hover:animate-pulse">
+                    +<CountingNumber end={153} duration={1500} suffix="%" />ROI
+                  </div>
                 </div>
               </div>
 
@@ -400,19 +453,25 @@ function App() {
                   <div className="text-slate-400 text-sm">Servers, Networking</div>
                 </div>
               </div>
-            </div>
-          </div>
+              </div>
+            </AnimatedCard>
+          </TextReveal>
 
           {/* Government Surplus & Auctions */}
-          <div className="mb-20">
-            <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-3xl p-8 border border-green-500/20">
+          <TextReveal delay={1000}>
+            <AnimatedCard className="mb-20" delay={600}>
+              <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-3xl p-8 border border-green-500/20">
               <div className="flex items-center mb-6">
-                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-4">
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-4 animate-float" style={{ animationDelay: '2s' }}>
                   <Gavel className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-3xl font-bold text-white">Government Surplus & Auctions</h3>
-                  <p className="text-green-300">Federal, state, and local government asset disposals</p>
+                  <h3 className="text-3xl font-bold text-white">
+                    <ShimmerText>Government Surplus & Auctions</ShimmerText>
+                  </h3>
+                  <p className="text-green-300">
+                    <ShimmerText>Federal, state, and local government asset disposals</ShimmerText>
+                  </p>
                 </div>
               </div>
               
@@ -431,40 +490,45 @@ function App() {
                     <span className="font-semibold">Real-time auction monitoring</span>
                   </div>
                 </div>
-                <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                  <h4 className="text-lg font-semibold text-white mb-4">Success Example</h4>
+                <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-300 hover:scale-105 group">
+                  <h4 className="text-lg font-semibold text-white mb-4">
+                    <ShimmerText>Success Example</ShimmerText>
+                  </h4>
                   <p className="text-slate-300 mb-4">
                     "Won a lot of surplus laptops at government auction for $1,200. 
                     After refurbishment, sold 50 units at $180 each."
                   </p>
-                  <div className="text-green-400 font-bold text-xl">+650% ROI</div>
+                  <div className="text-green-400 font-bold text-xl group-hover:animate-pulse">
+                    +<CountingNumber end={650} duration={1500} suffix="%" />ROI
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-slate-800/30 rounded-lg p-4 text-center">
+                <div className="bg-slate-800/30 rounded-lg p-4 text-center hover:bg-slate-800/50 transition-all duration-300 hover:scale-105">
                   <Car className="w-8 h-8 text-blue-400 mx-auto mb-2" />
                   <div className="text-white font-semibold">Fleet Vehicles</div>
                   <div className="text-slate-400 text-sm">Police, Municipal</div>
                 </div>
-                <div className="bg-slate-800/30 rounded-lg p-4 text-center">
+                <div className="bg-slate-800/30 rounded-lg p-4 text-center hover:bg-slate-800/50 transition-all duration-300 hover:scale-105">
                   <Factory className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <div className="text-white font-semibold">Heavy Equipment</div>
                   <div className="text-slate-400 text-sm">Tractors, Machinery</div>
                 </div>
-                <div className="bg-slate-800/30 rounded-lg p-4 text-center">
+                <div className="bg-slate-800/30 rounded-lg p-4 text-center hover:bg-slate-800/50 transition-all duration-300 hover:scale-105">
                   <Monitor className="w-8 h-8 text-purple-400 mx-auto mb-2" />
                   <div className="text-white font-semibold">Electronics</div>
                   <div className="text-slate-400 text-sm">Computers, Radios</div>
                 </div>
-                <div className="bg-slate-800/30 rounded-lg p-4 text-center">
+                <div className="bg-slate-800/30 rounded-lg p-4 text-center hover:bg-slate-800/50 transition-all duration-300 hover:scale-105">
                   <ShoppingCart className="w-8 h-8 text-pink-400 mx-auto mb-2" />
                   <div className="text-white font-semibold">Seized Assets</div>
                   <div className="text-slate-400 text-sm">Jewelry, Luxury Items</div>
                 </div>
               </div>
-            </div>
-          </div>
+              </div>
+            </AnimatedCard>
+          </TextReveal>
 
           {/* Platform Features */}
           <div className="bg-slate-800/30 rounded-3xl p-8 border border-slate-700/50">
