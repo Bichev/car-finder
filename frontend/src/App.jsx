@@ -4,6 +4,11 @@ import SearchForm from './components/SearchForm'
 import ResultsDisplay from './components/ResultsDisplay'
 import ProgressTracker from './components/ProgressTracker'
 import FeatureCard from './components/FeatureCard'
+import TextReveal from './components/TextReveal'
+import ShimmerText from './components/ShimmerText'
+import FloatingParticles from './components/FloatingParticles'
+import MagneticButton from './components/MagneticButton'
+import GradientBlob from './components/GradientBlob'
 import toast, { Toaster } from 'react-hot-toast'
 
 function App() {
@@ -113,8 +118,12 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       <Toaster position="top-right" />
+      
+      {/* React Bits Animated Background Effects */}
+      <FloatingParticles count={30} color="#3b82f6" />
+      <GradientBlob className="opacity-40" />
       
       {/* Navigation */}
       {/* <nav className="fixed top-0 w-full bg-slate-900/80 backdrop-blur-lg border-b border-slate-700/50 z-50">
@@ -142,83 +151,96 @@ function App() {
       </nav> */}
 
       {/* Hero Section */}
-      <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+      <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 text-blue-400 text-sm mb-6">
-            <Sparkles className="w-4 h-4 mr-2" />
-            AI-Powered Arbitrage Platform
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-            Turn Market
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"> Inefficiencies</span>
-            <br />Into Profit
-          </h1>
-          
-          <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Discover hidden arbitrage opportunities across multiple industries using advanced AI automation. 
-            From luxury collectibles to B2B equipment - unlock profits that others miss.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
-            {/* Demo Button with Badge */}
-            <div className="relative group">
-              {/* Hot Badge */}
-              <div className="absolute -top-3 -right-2 z-10">
-                <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg animate-pulse">
-                  🔥 HOT
-                </div>
-              </div>
-              <button 
-                onClick={scrollToDemo}
-                className="border border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 px-8 py-4 rounded-xl transition-all flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-blue-500/25"
-              >
-                <Play className="w-5 h-5 mr-2" />
-                See Live Demo
-                <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
-              </button>
+          <TextReveal delay={300}>
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 text-blue-400 text-sm mb-6">
+              <Sparkles className="w-4 h-4 mr-2" />
+              <ShimmerText>AI-Powered Arbitrage Platform</ShimmerText>
             </div>
+          </TextReveal>
+          
+          <TextReveal delay={600}>
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+              <ShimmerText>Turn Market</ShimmerText>
+              <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <ShimmerText> Inefficiencies</ShimmerText>
+              </span>
+              <br />
+              <ShimmerText>Into Profit</ShimmerText>
+            </h1>
+          </TextReveal>
+          
+          <TextReveal delay={900}>
+            <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+              Discover hidden arbitrage opportunities across multiple industries using advanced AI automation. 
+              From luxury collectibles to B2B equipment - unlock profits that others miss.
+            </p>
+          </TextReveal>
+          
+          <TextReveal delay={1200}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
+              {/* Demo Button with Badge */}
+              <div className="relative group">
+                {/* Hot Badge */}
+                <div className="absolute -top-3 -right-2 z-10">
+                  <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg animate-pulse">
+                    🔥 HOT
+                  </div>
+                </div>
+                <MagneticButton 
+                  onClick={scrollToDemo}
+                  className="border border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 px-8 py-4 rounded-xl transition-all flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-blue-500/25"
+                >
+                  <Play className="w-5 h-5 mr-2" />
+                  See Live Demo
+                  <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                </MagneticButton>
+              </div>
 
-            {/* Opportunities Button with Badge */}
-            <div className="relative group">
-              {/* Popular Badge */}
-              <div className="absolute -top-5 -right-3 z-10">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">
-                  ⭐ POPULAR
+              {/* Opportunities Button with Badge */}
+              <div className="relative group">
+                {/* Popular Badge */}
+                <div className="absolute -top-5 -right-3 z-10">
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">
+                    ⭐ POPULAR
+                  </div>
                 </div>
+                <MagneticButton 
+                  onClick={() => document.getElementById('opportunities').scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105 flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-purple-500/30"
+                >
+                  <Eye className="w-5 h-5 mr-2" />
+                  Explore Opportunities
+                  <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                </MagneticButton>
               </div>
-              {/* Premium Highlight */}
-              {/* <div className="absolute -top-5 -right-3 z-10">
-                <div className="bg-gradient-to-r from-yellow-500 to-yellow-400 text-black text-xs px-2 py-1 rounded-full font-bold shadow-lg">
-                  👑 PREMIUM
-                </div>
-              </div> */}
-              <button 
-                onClick={() => document.getElementById('opportunities').scrollIntoView({ behavior: 'smooth' })}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105 flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-purple-500/30"
-              >
-                <Eye className="w-5 h-5 mr-2" />
-                Explore Opportunities
-                <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
-              </button>
             </div>
-          </div>
+          </TextReveal>
 
           {/* Success Indicators */}
-          <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
-            <div className="flex items-center px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
-              <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-              <span className="text-green-400 text-sm font-medium">Automated Scrapping</span>
+          <TextReveal delay={1500}>
+            <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
+              <div className="flex items-center px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full hover:bg-green-500/20 transition-all duration-300 hover:scale-105 cursor-pointer">
+                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
+                <span className="text-green-400 text-sm font-medium">
+                  <ShimmerText>Automated Scrapping</ShimmerText>
+                </span>
+              </div>
+              <div className="flex items-center px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full hover:bg-blue-500/20 transition-all duration-300 hover:scale-105 cursor-pointer">
+                <TrendingUp className="w-4 h-4 text-blue-400 mr-2" />
+                <span className="text-blue-400 text-sm font-medium">
+                  <ShimmerText>Real-Time Perplexity Insights</ShimmerText>
+                </span>
+              </div>
+              <div className="flex items-center px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full hover:bg-purple-500/20 transition-all duration-300 hover:scale-105 cursor-pointer">
+                <Zap className="w-4 h-4 text-purple-400 mr-2" />
+                <span className="text-purple-400 text-sm font-medium">
+                  <ShimmerText>AI Market Analytics</ShimmerText>
+                </span>
+              </div>
             </div>
-            <div className="flex items-center px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full">
-              <TrendingUp className="w-4 h-4 text-blue-400 mr-2" />
-              <span className="text-blue-400 text-sm font-medium">Real-Time Perplexity Insights</span>
-            </div>
-            <div className="flex items-center px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full">
-              <Zap className="w-4 h-4 text-purple-400 mr-2" />
-              <span className="text-purple-400 text-sm font-medium">AI Market Analytics</span>
-            </div>
-          </div>
+          </TextReveal>
 
           {/* Success Metrics */}
           {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
