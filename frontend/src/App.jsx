@@ -160,21 +160,64 @@ function App() {
             From luxury collectibles to B2B equipment - unlock profits that others miss.
           </p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <button 
-              onClick={scrollToDemo}
-              className="border border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 px-8 py-4 rounded-xl transition-all flex items-center font-semibold text-lg"
-            >
-              <Play className="w-5 h-5 mr-2" />
-              See Live Demo
-            </button>
-            <button 
-              onClick={() => document.getElementById('opportunities').scrollIntoView({ behavior: 'smooth' })}
-              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105 flex items-center font-semibold text-lg"
-            >
-              <Eye className="w-5 h-5 mr-2" />
-              Explore Opportunities
-            </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
+            {/* Demo Button with Badge */}
+            <div className="relative group">
+              {/* Hot Badge */}
+              <div className="absolute -top-3 -right-2 z-10">
+                <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg animate-pulse">
+                  🔥 HOT
+                </div>
+              </div>
+              <button 
+                onClick={scrollToDemo}
+                className="border border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 px-8 py-4 rounded-xl transition-all flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-blue-500/25"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                See Live Demo
+                <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+
+            {/* Opportunities Button with Badge */}
+            <div className="relative group">
+              {/* Popular Badge */}
+              <div className="absolute -top-5 -right-3 z-10">
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">
+                  ⭐ POPULAR
+                </div>
+              </div>
+              {/* Premium Highlight */}
+              {/* <div className="absolute -top-5 -right-3 z-10">
+                <div className="bg-gradient-to-r from-yellow-500 to-yellow-400 text-black text-xs px-2 py-1 rounded-full font-bold shadow-lg">
+                  👑 PREMIUM
+                </div>
+              </div> */}
+              <button 
+                onClick={() => document.getElementById('opportunities').scrollIntoView({ behavior: 'smooth' })}
+                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all transform hover:scale-105 flex items-center font-semibold text-lg group-hover:shadow-xl group-hover:shadow-purple-500/30"
+              >
+                <Eye className="w-5 h-5 mr-2" />
+                Explore Opportunities
+                <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+
+          {/* Success Indicators */}
+          <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
+            <div className="flex items-center px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
+              <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
+              <span className="text-green-400 text-sm font-medium">Automated Scrapping</span>
+            </div>
+            <div className="flex items-center px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full">
+              <TrendingUp className="w-4 h-4 text-blue-400 mr-2" />
+              <span className="text-blue-400 text-sm font-medium">Real-Time Perplexity Insights</span>
+            </div>
+            <div className="flex items-center px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full">
+              <Zap className="w-4 h-4 text-purple-400 mr-2" />
+              <span className="text-purple-400 text-sm font-medium">AI Market Analytics</span>
+            </div>
           </div>
 
           {/* Success Metrics */}

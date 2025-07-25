@@ -1,0 +1,114 @@
+services:
+  # MongoDB Database
+  car-finder-mongo:
+    image: mongo:7.0
+    container_name: car-finder-mongo-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: carfinder
+      MONGO_INITDB_ROOT_PASSWORD: carfinder123
+      MONGO_INITDB_DATABASE: car_finder
+    ports:
+      - "27018:27017"
+    volumes:
+      - car_finder_mongo_data_dev:/data/db
+      - car_finder_mongo_config_dev:/data/configdb
+    networks:
+      - car-finder-network-dev
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Car Finder Backend (Development)
+  car-finder-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: car-finder-backend-dev
+    restart: unless-stopped
+    environment:
+      - PYTHONPATH=/app
+      - MONGODB_URL=mongodb://carfinder:carfinder123@car-finder-mongo:27017/car_finder?authSource=admin
+      - PORT=8000
+      - ENVIRONMENT=development
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src:ro
+      - ./requirements.txt:/app/requirements.txt:ro
+      - car_finder_logs_dev:/app/logs
+    networks:
+      - car-finder-network-dev
+    depends_on:
+      car-finder-mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Frontend Development Server (Hot Reload)
+  car-finder-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: car-finder-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "8001:3010"  # Frontend will be available on localhost:8001
+    volumes:
+      - ./frontend/src:/app/src:ro
+      - ./frontend/public:/app/public:ro
+      - ./frontend/index.html:/app/index.html:ro
+      - ./frontend/package.json:/app/package.json:ro
+      - ./frontend/vite.config.js:/app/vite.config.js:ro
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js:ro
+      - ./frontend/postcss.config.js:/app/postcss.config.js:ro
+    networks:
+      - car-finder-network-dev
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - DOCKER_ENV=true
+    depends_on:
+      - car-finder-backend
+
+  # Optional: MongoDB Admin Interface
+  car-finder-mongo-admin:
+    image: mongo-express:1.0.2
+    container_name: car-finder-mongo-admin-dev
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: carfinder
+      ME_CONFIG_MONGODB_ADMINPASSWORD: carfinder123
+      ME_CONFIG_MONGODB_URL: mongodb://carfinder:carfinder123@car-finder-mongo:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+      ME_CONFIG_MONGODB_SERVER: car-finder-mongo
+    ports:
+      - "8082:8081"
+    networks:
+      - car-finder-network-dev
+    depends_on:
+      car-finder-mongo:
+        condition: service_healthy
+
+networks:
+  car-finder-network-dev:
+    driver: bridge
+    name: car-finder-network-dev
+
+volumes:
+  car_finder_mongo_data_dev:
+    name: car_finder_mongo_data_dev
+  car_finder_mongo_config_dev:
+    name: car_finder_mongo_config_dev
+  car_finder_logs_dev:
+    name: car_finder_logs_dev 

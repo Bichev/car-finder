@@ -1,0 +1,18 @@
+FROM node:18-slim
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --silent
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 3010
+
+# Start development server with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 

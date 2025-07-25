@@ -10,9 +10,12 @@ export default defineConfig(({ command, mode }) => {
     server: {
       port: 3010,
       host: true,
+      watch: {
+        usePolling: true, // For Docker environment
+      },
       proxy: isDev ? {
         '/api': {
-          target: 'http://localhost:8000',
+          target: process.env.DOCKER_ENV ? 'http://car-finder-backend:8000' : 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
         }
