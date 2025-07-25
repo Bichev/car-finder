@@ -271,7 +271,7 @@ const ResultsDisplay = ({ results }) => {
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Sources:</h4>
                 <div className="space-y-1">
-                  {analysis.citations.slice(0, 3).map((citation, index) => (
+                  {analysis.citations.slice(0, 5).map((citation, index) => (
                     <a
                       key={index}
                       href={citation}
@@ -296,8 +296,8 @@ const ResultsDisplay = ({ results }) => {
             <Car className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-gray-900">Vehicle Listings</h3>
-            <p className="text-gray-600">Click any vehicle to view details</p>
+            <h3 className="text-xl font-bold text-white-900">Vehicle Listings</h3>
+            <p className="text-white-600">Click any vehicle to view details</p>
           </div>
         </div>
 

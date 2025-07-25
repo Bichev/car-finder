@@ -971,7 +971,8 @@ async def test_playwright_interactive(test_config: PlaywrightTest):
             "results": {
                 "success": result.success,
                 "vehicles_found": result.total_found,
-                "sample_vehicles": result.vehicles[:5] if result.vehicles else [],
+                # "sample_vehicles": result.vehicles[:5] if result.vehicles else [],
+                "sample_vehicles": result.vehicles[:9] if result.vehicles else [],
                 "error": result.error_message
             },
             "automation_details": {

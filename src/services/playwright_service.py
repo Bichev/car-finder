@@ -894,7 +894,7 @@ class PlaywrightScrapingService:
             max_pages = 2  # Reduced to 2 pages for testing
             current_page = 1
             
-            while current_page < max_pages and len(vehicles) < 40:  # Max 40 vehicles for testing
+            while current_page < max_pages and len(vehicles) < 20:  # Max 40 vehicles for testing
                 try:
                     # Look for "Next" button or page links (Updated for Cars.com structure)
                     next_selectors = [
@@ -1847,7 +1847,7 @@ class PlaywrightScrapingService:
             max_pages = 2  # Reduced to 2 pages for testing
             current_page = 1
             
-            while current_page < max_pages and len(vehicles) < 40:  # Max 40 vehicles for testing
+            while current_page < max_pages and len(vehicles) < 20:  # Max 40 vehicles for testing
                 try:
                     # Look for "Next" button or page links (Edmunds structure)
                     next_selectors = [
